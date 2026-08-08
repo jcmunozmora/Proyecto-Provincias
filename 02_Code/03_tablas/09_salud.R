@@ -234,10 +234,12 @@ ETIQUETAS_TERRITORIO <- c(
 
   escribir_hoja(
     dplyr::select(tabla, -tipo_fila), archivo, "enfermedades_tropicales",
+    # El .do rotulaba la leishmaniasis "por 100 mil hab.", pero el diccionario
+    # del insumo (y el Anexo 1) la miden sobre POBLACIÓN RURAL: se explicita.
     etiquetas = c(ETIQUETAS_TERRITORIO,
                   dengue        = "Tasa de dengue por 100 mil hab.",
                   malaria       = "Tasa de malaria por 100 mil hab.",
-                  leishmaniasis = "Tasa de leishmaniasis por 100 mil hab."),
+                  leishmaniasis = "Tasa de leishmaniasis por 100 mil hab. rurales"),
     formatos = stats::setNames(rep("#,##0.00", length(columnas)), columnas)
   )
 

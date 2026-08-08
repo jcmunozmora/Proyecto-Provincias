@@ -22,12 +22,21 @@ if (!exists("RUTAS")) {
 }
 
 #' Convierte texto de una tabla del informe a número.
-#' El informe usa formato colombiano ("2.841", "38%", "1.234,5").
+#'
+#' El informe usa sobre todo formato colombiano ("2.841", "38%", "1.234,5"),
+#' pero algunas tablas quedaron con decimal anglosajón ("13.89"). Borrar el
+#' punto siempre convertiría 13.89 en 1389, así que se decide por el contexto:
+#' con coma presente el punto es separador de miles; sin coma, un punto seguido
+#' de exactamente tres dígitos es de miles y en los demás casos es decimal.
 .num_ref <- function(x) {
   y <- stringr::str_squish(as.character(x))
   y <- stringr::str_remove_all(y, "[%$\\s]")
-  y <- stringr::str_remove_all(y, "\\.")     # separador de miles
-  y <- stringr::str_replace(y, ",", ".")     # decimal
+
+  punto_de_miles <- stringr::str_detect(y, ",") |
+    stringr::str_detect(y, "\\.\\d{3}(\\.|$)")
+
+  y <- ifelse(punto_de_miles, stringr::str_remove_all(y, "\\."), y)
+  y <- stringr::str_replace(y, ",", ".")
   suppressWarnings(as.numeric(y))
 }
 
@@ -83,8 +92,11 @@ leer_tabla_referencia <- function(csv, municipios) {
   # ponen dos rankings lado a lado (municipio+valor | municipio+valor), cada uno
   # ordenado por su propia columna. Cada columna numérica se asocia entonces con
   # la columna de municipios que tenga inmediatamente a su izquierda.
+  # Umbral bajo a propósito: algunas tablas solo listan los municipios donde el
+  # fenómeno existe (p. ej. 6 de 13 con cultivos de coca) y aun así son
+  # comparables.
   aciertos <- vapply(crudo, function(cl) sum(norm_txt(cl) %in% clave), integer(1))
-  cols_mun <- which(aciertos >= length(municipios) * 0.6)
+  cols_mun <- which(aciertos >= max(3, length(municipios) * 0.25))
   if (!length(cols_mun)) return(NULL)  # no es una tabla municipal comparable
 
   columnas <- list()
@@ -151,7 +163,7 @@ comparar_columna <- function(generada, columna, referencia, tolerancia = 0.005) 
     ref <- m[[cl]]
     dec <- decimales[[cl]] %||% 2L
     # La referencia puede venir en % (38) donde el pipeline da proporción (0,38)
-    for (k in c(1, 100, 1 / 100, 1 / 10)) {
+    for (k in c(1, 100, 1 / 100, 1 / 10, 1e-6, 1e-3)) {
       # Se compara a la precisión con que se publicó la cifra
       gen <- round(m$valor * k, dec)
       dif <- abs(gen - ref) / pmax(abs(ref), 1e-9)
@@ -245,6 +257,21 @@ COMPARACIONES <- list(
        referencia = "Índice de Desempeño Fiscal", columnas = "IDF"),
   list(seccion = "04_Gobernabilidad", archivo = "gobernabilidad.xlsx", hoja = "icm",
        referencia = "Índice de Ciudades Modernas", columnas = "ICM"),
+  list(seccion = "03_Ordenamiento", archivo = "ordenamiento.xlsx",
+       hoja = "vias_area", referencia = "Kilómetros de vía según el área",
+       columnas = c("Km de vía primaria por km² del municipio",
+                    "Km de vía secundaria por km² del municipio",
+                    "Km de vía terciaria por km² del municipio")),
+  list(seccion = "03_Ordenamiento", archivo = "ordenamiento.xlsx",
+       hoja = "deficit_vivienda",
+       referencia = "Déficit cualitativo y cuantitativo",
+       columnas = c("Déficit cuantitativo de vivienda",
+                    "Déficit cualitativo de vivienda")),
+  list(seccion = "03_Ordenamiento", archivo = "ordenamiento.xlsx",
+       hoja = "catastro", referencia = "Caracterización del catastro",
+       # El informe publica los avalúos en millones de pesos y el pipeline en
+       # pesos, como el .do; lo absorbe el factor de escala del comparador.
+       columnas = "Avalúo catastral total ($)"),
   list(seccion = "06_Desarrollo_Rural", archivo = "desarrollo_rural.xlsx",
        hoja = "inventario_pecuario",
        referencia = "Inventario de especies pecuarias",
@@ -265,7 +292,22 @@ COMPARACIONES <- list(
   list(seccion = "08_Educacion", archivo = "educacion.xlsx", hoja = "educacion",
        referencia = "Deserción escolar", columnas = "Tasa de deserción"),
   list(seccion = "08_Educacion", archivo = "educacion.xlsx", hoja = "educacion",
-       referencia = "Repitencia escolar", columnas = "Tasa de repitencia")
+       referencia = "Repitencia escolar", columnas = "Tasa de repitencia"),
+  list(seccion = "10_Seguridad", archivo = "seguridad.xlsx", hoja = "coca",
+       referencia = "Densidad de cultivos ilícitos",
+       columnas = c("Hectáreas de coca (2023)",
+                    "Coca sobre el total departamental de coca (%)")),
+  list(seccion = "10_Seguridad", archivo = "seguridad.xlsx", hoja = "delitos",
+       referencia = "Tasa delitos de alto impacto",
+       columnas = c("Hurtos por 100.000 hab.", "Homicidios por 100.000 hab.",
+                    "Violencia intrafamiliar por 100.000 hab.",
+                    "Delitos sexuales por 100.000 hab.")),
+  list(seccion = "10_Seguridad", archivo = "seguridad.xlsx", hoja = "irv",
+       referencia = "riesgo de victimización",
+       columnas = "Índice de Riesgo de Victimización"),
+  list(seccion = "10_Seguridad", archivo = "seguridad.xlsx", hoja = "srtdaf",
+       referencia = "tierras despojadas",
+       columnas = c("Número de solicitudes", "Número de predios"))
 )
 
 #' Corre todas las comparaciones declaradas y devuelve el resumen.
