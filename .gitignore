@@ -1,7 +1,45 @@
-# Archivos muy grandes
+# ============================================================
+# Proyecto-Provincias — .gitignore
+# ============================================================
+
+# --- Archivos muy grandes (fuentes que no caben en GitHub) ---
+# Pedirlas al equipo; ver README (sección "Fuentes ausentes del clon")
 01_Data/00_Inputs/EMPAQUETAMIENTO_FIJO_3.csv
 01_Data/00_Inputs/PPED-AreaSexoEdadMun-2018-2042_VP.xlsx
 01_Data/01_Derived/poblacion_total.dta
 01_Data/00_Inputs/MICRODATOS ECV 2023.dta
-# Archivos temporales de Excel
+01_Data/00_Inputs/Data anonimizada encuesta percepcion 2018-2025.xlsx
+01_Data/00_Inputs/Indicadores_ECV2023.xlsx
+
+# --- Temporales de Excel ---
 ~$*
+**/~$*
+
+# --- RStudio / R ---
+.Rproj.user/
+.Rhistory
+.RData
+renv/library/
+renv/local/
+renv/cellar/
+renv/sandbox/
+renv/staging/
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+
+# --- Stata ---
+*.stpr
+*.stpm
+_tmp_*.dta
+
+# --- Logs de ejecución batch ---
+*.log
+
+# --- Outputs de referencia (golden) generados con Stata ---
+# Se regeneran con 99_Legacy/codigo/stata_pipeline; solo se versiona tests/golden_provincia4/
+tests/golden/
+
+# --- Sistema operativo ---
+.DS_Store
+Thumbs.db
