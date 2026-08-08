@@ -191,13 +191,18 @@ FUENTE_TURISMO  <- "Gobernación de Antioquia, registro de visitantes extranjero
 
 #' Barras horizontales de un indicador municipal con la línea de referencia del
 #' agregado provincial. Devuelve invisible la ruta del PNG.
+#'
+#' En las hojas de la ECV el valor municipal y el agregado viven en columnas
+#' distintas (`_mun` y `_ofi`), por eso `columna_agregado` es un parámetro y no
+#' se asume que la referencia esté en la misma columna que el detalle.
 .barras_municipal <- function(hoja, columna, prov, destino, archivo, id, slug,
                               extremo, titulo_fmt, subtitulo, etiqueta,
-                              fuente, nota = NULL, tipo_prov = "Provincia") {
+                              fuente, nota = NULL, tipo_prov = "Provincia",
+                              columna_agregado = columna) {
   d <- hoja[hoja$tipo_fila == "Municipio" & !is.na(hoja[[columna]]), , drop = FALSE]
   i <- if (extremo == "max") which.max(d[[columna]]) else which.min(d[[columna]])
   foco <- d$municipio[i]
-  v_prov <- .agregado(hoja, tipo_prov, columna)
+  v_prov <- .agregado(hoja, tipo_prov, columna_agregado)
 
   p <- fig_barras(
     dplyr::mutate(d, valor = .data[[columna]]),
@@ -234,7 +239,8 @@ figuras_economia <- function(prov, tabla) {
       .pp(.agregado(nbi, "Subregión", "tot_pob_nbi_ofi")),
       .pp(.agregado(nbi, "Departamento", "tot_pob_nbi_ofi"))),
     etiqueta = function(x) .pp(x), fuente = FUENTE_ECV,
-    nota = "Cálculos propios. El valor provincial es un promedio ponderado por población."
+    nota = "Cálculos propios. El valor provincial es un promedio ponderado por población.",
+    columna_agregado = "tot_pob_nbi_ofi"
   )
 
   ipm <- tabla$ecv_ipm
@@ -248,7 +254,8 @@ figuras_economia <- function(prov, tabla) {
       .pp(.agregado(ipm, "Subregión", "tot_pob_ipm_ofi")),
       .pp(.agregado(ipm, "Departamento", "tot_pob_ipm_ofi"))),
     etiqueta = function(x) .pp(x), fuente = FUENTE_ECV,
-    nota = "Cálculos propios. El valor provincial es un promedio ponderado por población."
+    nota = "Cálculos propios. El valor provincial es un promedio ponderado por población.",
+    columna_agregado = "tot_pob_ipm_ofi"
   )
 
   # --- 2.2 Desigualdad: Gini del hogar frente al Gini laboral ---------------
@@ -286,7 +293,8 @@ figuras_economia <- function(prov, tabla) {
       titulo = sprintf("En %s el %s del empleo es informal, el nivel más alto de la provincia",
                        oi_mun$municipio[i], .pp(oi_mun$tot_emp_informal_mun[i], 0)),
       subtitulo = sprintf(
-        "Tasa de ocupación e informalidad laboral, 2023. Municipios de la provincia %s. Provincia: ocupación %s e informalidad %s.",
+        paste("Tasa de ocupación e informalidad laboral, 2023. Municipios de la",
+              "provincia %s. Provincia: ocupación %s e informalidad %s."),
         prov$etiqueta,
         .pp(.agregado(oi, "Provincia", "tot_to_ofi")),
         .pp(.agregado(oi, "Provincia", "tot_emp_informal_ofi"))),
@@ -328,7 +336,8 @@ figuras_economia <- function(prov, tabla) {
       prov$etiqueta,
       .pp(.agregado(dn, "Subregión", "tot_nini_ofi")),
       .pp(.agregado(dn, "Departamento", "tot_nini_ofi"))),
-    etiqueta = function(x) .pp(x), fuente = FUENTE_ECV, nota = "Cálculos propios."
+    etiqueta = function(x) .pp(x), fuente = FUENTE_ECV, nota = "Cálculos propios.",
+    columna_agregado = "tot_nini_ofi"
   )
 
   # --- 2.6 Índice de dependencia económica ----------------------------------
@@ -336,9 +345,11 @@ figuras_economia <- function(prov, tabla) {
   .barras_municipal(
     ide, "ide", prov, destino, archivo,
     id = "fig_07", slug = "dependencia_economica", extremo = "max",
-    titulo_fmt = "%s tiene la mayor carga demográfica de la provincia: %s dependientes por cada 100 personas en edad de trabajar",
+    titulo_fmt = paste("%s tiene la mayor carga demográfica de la provincia:",
+                       "%s dependientes por cada 100 personas en edad de trabajar"),
     subtitulo = sprintf(
-      "Población menor de 15 años y de 65 y más por cada 100 personas de 15 a 64 años, 2025. Provincia %s. Subregión %s; Antioquia %s.",
+      paste("Población menor de 15 años y de 65 y más por cada 100 personas de",
+            "15 a 64 años, 2025. Provincia %s. Subregión %s; Antioquia %s."),
       prov$etiqueta,
       num_co(.agregado(ide, "Total subregión", "ide"), 1),
       num_co(.agregado(ide, "Total departamento", "ide"), 1)),
@@ -433,7 +444,8 @@ figuras_economia <- function(prov, tabla) {
       titulo = sprintf("%s es el municipio más dependiente de las actividades primarias: %s de su valor agregado",
                        comp$municipio[i], .pp(comp$Primarias[i], 0)),
       subtitulo = sprintf(
-        "Composición del valor agregado municipal por grandes sectores, %d. Provincia %s. Porcentajes sobre el valor agregado total.",
+        paste("Composición del valor agregado municipal por grandes sectores, %d.",
+              "Provincia %s. Porcentajes sobre el valor agregado total."),
         anio_va, prov$etiqueta),
       fuente = FUENTE_VA,
       nota = paste("Cálculos propios. 'No distribuido' es la parte del valor",
@@ -489,7 +501,9 @@ figuras_economia <- function(prov, tabla) {
         titulo = sprintf("%s es el mineral con más títulos vigentes en la provincia: %s títulos",
                          minerales$mineral[1], num_co(minerales$n_titulos[1], 0)),
         subtitulo = sprintf(
-          "Títulos mineros activos por tipo de mineral en la provincia %s. Un título con varios minerales cuenta en cada uno, así que la suma supera el número de títulos.",
+          paste("Títulos mineros activos por tipo de mineral en la provincia %s.",
+                "Un título con varios minerales cuenta en cada uno, así que la",
+                "suma supera el número de títulos."),
           prov$etiqueta),
         fuente = FUENTE_ANM, nota = "Cálculos propios."
       )
@@ -529,7 +543,9 @@ figuras_economia <- function(prov, tabla) {
       titulo = sprintf("%s lidera la llegada de visitantes extranjeros a la provincia",
                        lider),
       subtitulo = sprintf(
-        "Visitantes extranjeros no residentes por municipio, %d-%d. Cuatro municipios con más llegadas acumuladas y el resto agrupado. Provincia %s.",
+        paste("Visitantes extranjeros no residentes por municipio, %d-%d. Cuatro",
+              "municipios con más llegadas acumuladas y el resto agrupado.",
+              "Provincia %s."),
         min(anios), ultimo, prov$etiqueta),
       fuente = FUENTE_TURISMO, nota = "Cálculos propios."
     )
@@ -544,7 +560,9 @@ figuras_economia <- function(prov, tabla) {
       titulo = sprintf("La provincia capta el %s de los visitantes extranjeros que llegan a Antioquia",
                        pct_co(comp_fig$participacion[comp_fig$anio == ultimo] * 100, 2)),
       subtitulo = sprintf(
-        "Participación de la provincia %s en los visitantes extranjeros no residentes del departamento, %d-%d. En %d: %s visitantes en la provincia frente a %s en Antioquia.",
+        paste("Participación de la provincia %s en los visitantes extranjeros no",
+              "residentes del departamento, %d-%d. En %d: %s visitantes en la",
+              "provincia frente a %s en Antioquia."),
         prov$etiqueta, min(anios), ultimo, ultimo,
         num_co(comp_fig$total_provincia[comp_fig$anio == ultimo], 0),
         num_co(comp_fig$total_antioquia[comp_fig$anio == ultimo], 0)),
