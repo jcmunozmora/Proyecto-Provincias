@@ -174,7 +174,24 @@ etiqueta_pct <- function(dec = 0) function(x) pct_co(x, dec)
 
 #' Bloque de texto estándar: título afirmativo, subtítulo con unidad/año/ámbito,
 #' fuente. Ver DISENO.md §6.
-textos_fig <- function(titulo, subtitulo = NULL, fuente = NULL, nota = NULL) {
+#'
+#' Los textos se reparten en varias líneas según el ancho de la figura: un
+#' título o subtítulo largo se cortaría en el borde derecho al exportar, porque
+#' ggplot2 no ajusta el texto solo.
+#'
+#' @param ancho_cm ancho al que se va a exportar la figura (16 cm por defecto,
+#'   el ancho de caja del informe).
+textos_fig <- function(titulo, subtitulo = NULL, fuente = NULL, nota = NULL,
+                       ancho_cm = 16) {
+  # Caracteres por línea: aproximación empírica para Inter, ~1,9 mm por carácter
+  # a 10 pt. Se escala con el tamaño de cada elemento.
+  por_linea <- function(pt) floor(ancho_cm * 10 / (pt * 0.19))
+
+  envolver <- function(x, pt) {
+    if (is.null(x)) return(NULL)
+    stringr::str_wrap(x, width = por_linea(pt))
+  }
+
   pie <- NULL
   if (!is.null(fuente)) {
     pie <- paste0("Fuente: ", fuente)
@@ -182,7 +199,12 @@ textos_fig <- function(titulo, subtitulo = NULL, fuente = NULL, nota = NULL) {
   } else if (!is.null(nota)) {
     pie <- nota
   }
-  ggplot2::labs(title = titulo, subtitle = subtitulo, caption = pie)
+
+  ggplot2::labs(
+    title = envolver(titulo, PT$titulo),
+    subtitle = envolver(subtitulo, PT$subtitulo),
+    caption = envolver(pie, PT$fuente)
+  )
 }
 
 # --- Geoms de uso frecuente ---------------------------------------------------

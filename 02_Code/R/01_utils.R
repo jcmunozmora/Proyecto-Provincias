@@ -21,21 +21,39 @@ norm_txt <- function(x) {
 }
 
 #' Nombre real de una columna a partir de una búsqueda insensible a acentos,
-#' mayúsculas y espacios. Devuelve NA si no hay coincidencia.
+#' mayúsculas, espacios y separadores. Devuelve NA si no hay coincidencia.
+#'
+#' Tolera que la misma columna se llame "AREA KM2", "AREAKM2" o "area_km2":
+#' Stata compacta los espacios al importar con `firstrow` y readxl no, así que
+#' el mismo archivo produce nombres distintos según quién lo lea.
 #'
 #' @param datos data.frame
 #' @param ... una o más alternativas; se devuelve la primera que exista
 #' @examples col(datos, "Código DANE", "cod_dane", "ind_mpio")
 col <- function(datos, ...) {
-  alternativas <- norm_txt(c(...))
+  compacto <- function(x) stringr::str_remove_all(norm_txt(x), "[ _.\\-]")
+  alternativas <- c(...)
   reales <- names(datos)
   for (a in alternativas) {
-    i <- which(norm_txt(reales) == a)
+    i <- which(norm_txt(reales) == norm_txt(a))          # exacta
     if (length(i)) return(reales[i[1]])
-    i <- which(startsWith(norm_txt(reales), a))   # coincidencia por prefijo
+    i <- which(compacto(reales) == compacto(a))          # ignorando separadores
+    if (length(i)) return(reales[i[1]])
+    i <- which(startsWith(compacto(reales), compacto(a)))# por prefijo
     if (length(i)) return(reales[i[1]])
   }
   NA_character_
+}
+
+#' Igual que col(), pero aborta con un mensaje que dice qué columnas sí hay.
+col_req <- function(datos, ...) {
+  nombre <- col(datos, ...)
+  if (is.na(nombre)) {
+    stop("No encuentro ninguna de estas columnas: ", paste(c(...), collapse = ", "),
+         "\n  Columnas disponibles: ", paste(names(datos), collapse = " | "),
+         call. = FALSE)
+  }
+  nombre
 }
 
 #' Nombres de municipio en la forma canónica del proyecto: MAYÚSCULAS, sin
@@ -58,12 +76,13 @@ normalizar_municipio <- function(x) {
   ifelse(y %in% names(correcciones), correcciones[y], y)
 }
 
-#' Presentación de nombres de municipio en tablas y figuras: capitalización
-#' normal con tildes, tomada del crosswalk (que es la fuente autorizada).
+#' Nombre de municipio para mostrar en tablas y figuras: con tildes y
+#' preposiciones en minúscula ("Carolina del Príncipe"), tal como lo trae el
+#' listado oficial. Nunca derivar esto con str_to_title() sobre el nombre
+#' normalizado: produce "Carolina Del Principe".
 etiqueta_municipio <- function(codigos) {
   cw <- crosswalk_provincias()
-  idx <- match(as.integer(codigos), cw$ind_mpio)
-  stringr::str_to_title(cw$nvl_label[idx])
+  cw$municipio[match(as.integer(codigos), cw$ind_mpio)]
 }
 
 # --- Crosswalks territoriales -------------------------------------------------
@@ -80,11 +99,13 @@ crosswalk_provincias <- function() {
       dplyr::mutate(
         ind_mpio = as.integer(ind_mpio),
         nvl_label = as.character(nvl_label),
+        municipio = as.character(municipio),
         provincia = as.character(provincia),
         subregion = as.character(subregion),
         id_provincia = as.integer(id_provincia)
       ) |>
-      dplyr::select(ind_mpio, nvl_label, subregion, provincia, id_provincia)
+      dplyr::select(ind_mpio, nvl_label, municipio, subregion, provincia,
+                    id_provincia)
   }
   .cache$prov
 }
@@ -178,8 +199,11 @@ agregar_totales <- function(datos, universo = NULL, prov, columnas,
     })
     fila <- stats::setNames(as.data.frame(valores), columnas)
     fila$ind_mpio <- NA_integer_
-    fila$nvl_label <- etiqueta
     fila$tipo_fila <- tipo
+    # La etiqueta va en la columna de nombre que traiga la tabla: `municipio`
+    # (nombre de presentación) y/o `nvl_label` (nombre normalizado).
+    if ("municipio" %in% names(datos)) fila$municipio <- etiqueta
+    if ("nvl_label" %in% names(datos)) fila$nvl_label <- etiqueta
     fila
   }
 
@@ -238,14 +262,14 @@ escribir_hoja <- function(datos, archivo, hoja, etiquetas = NULL, formatos = NUL
   n_col <- ncol(d)
   # Encabezado
   wb <- openxlsx2::wb_add_font(wb, hoja, dims = openxlsx2::wb_dims(rows = 1, cols = 1:n_col),
-                               bold = "single", color = openxlsx2::wb_color(hex = "FFFFFFFF"))
+                               bold = "1", color = openxlsx2::wb_color(hex = "FFFFFFFF"))
   wb <- openxlsx2::wb_add_fill(wb, hoja, dims = openxlsx2::wb_dims(rows = 1, cols = 1:n_col),
                                color = openxlsx2::wb_color(hex = "FF4458A6"))
   # Filas de total en negrita
   totales <- which(es_fila_total(datos)) + 1
   if (length(totales)) {
     wb <- openxlsx2::wb_add_font(wb, hoja,
-      dims = openxlsx2::wb_dims(rows = totales, cols = 1:n_col), bold = "single")
+      dims = openxlsx2::wb_dims(rows = totales, cols = 1:n_col), bold = "1")
   }
   # Formatos numéricos
   if (!is.null(formatos)) {
