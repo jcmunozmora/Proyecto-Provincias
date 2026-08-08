@@ -186,6 +186,14 @@ comparar_columna <- function(generada, columna, referencia, tolerancia = 0.005) 
 # del pipeline es el correcto según la fuente y el publicado tiene una errata.
 # Formato: "seccion|columna|municipio" -> explicación.
 DIFERENCIAS_CONOCIDAS <- c(
+  "09_Salud|Tasa de mortalidad infantil (x 1.000 nacidos vivos)|angostura" = paste(
+    "El informe intercambió las filas de Angostura y Anorí en la Tabla 50.",
+    "MORTALIDAD_INFANTIL.xlsx da para Angostura (05038) 7,9/17,1/0,0/11,6/13,9",
+    "y para Anorí (05040) 18,1/17,2/8,8/0,0/5,5; el informe las publica al revés."
+  ),
+  "09_Salud|Tasa de mortalidad infantil (x 1.000 nacidos vivos)|anori" = paste(
+    "Misma errata: filas de Angostura y Anorí intercambiadas en la Tabla 50."
+  ),
   "01_Generalidades|Área municipal (km²)|toledo" = paste(
     "AREA_ORIGINAL.xlsx da 122,578 km², que redondea a 123; el Anexo 1 publica",
     "122. Los otros 15 valores de la tabla sí redondean bien, así que es una",
@@ -293,6 +301,13 @@ COMPARACIONES <- list(
        referencia = "Deserción escolar", columnas = "Tasa de deserción"),
   list(seccion = "08_Educacion", archivo = "educacion.xlsx", hoja = "educacion",
        referencia = "Repitencia escolar", columnas = "Tasa de repitencia"),
+  # 09 Salud: solo la mortalidad infantil es comparable. Bajo peso, vectores,
+  # suicidios y aseguramiento usan cortes de datos POSTERIORES al informe
+  # (2023 y diciembre de 2025 frente a 2024/2025 publicados), así que no
+  # tienen contra qué validarse hasta que se actualicen los derivados.
+  list(seccion = "09_Salud", archivo = "salud.xlsx", hoja = "mortalidad_infantil",
+       referencia = "Mortalidad infantil", anio = 2024,
+       columnas = "Tasa de mortalidad infantil (x 1.000 nacidos vivos)"),
   list(seccion = "10_Seguridad", archivo = "seguridad.xlsx", hoja = "coca",
        referencia = "Densidad de cultivos ilícitos",
        columnas = c("Hectáreas de coca (2023)",
