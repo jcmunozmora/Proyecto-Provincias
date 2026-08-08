@@ -280,6 +280,20 @@ COMPARACIONES <- list(
        # El informe publica los avalúos en millones de pesos y el pipeline en
        # pesos, como el .do; lo absorbe el factor de escala del comparador.
        columnas = "Avalúo catastral total ($)"),
+  ## 05 Economía. El valor agregado NO entra: el Anexo se publicó a precios
+  ## corrientes y el derivado solo trae la serie a constantes de 2015 (la razón
+  ## publicado/pipeline es 1,714 en los 13 municipios). Lo invariante al
+  ## deflactor —el peso relativo de cada municipio— sí reproduce el informe.
+  list(seccion = "05_Economia", archivo = "economia.xlsx", hoja = "ecv_gini",
+       referencia = "Medición del GINI",
+       columnas = c("Gini ingresos del hogar - total (municipal)",
+                    "Gini laboral - total (municipal)")),
+  list(seccion = "05_Economia", archivo = "economia.xlsx",
+       hoja = "ecv_desocupacion_nini",
+       referencia = "Desocupación general y para jóvenes",
+       columnas = c("Tasa de desocupación - total (municipal)",
+                    "Tasa de desocupación jóvenes (15-28) (municipal)",
+                    "Jóvenes que no estudian ni trabajan (NiNi) (municipal)")),
   list(seccion = "06_Desarrollo_Rural", archivo = "desarrollo_rural.xlsx",
        hoja = "inventario_pecuario",
        referencia = "Inventario de especies pecuarias",
