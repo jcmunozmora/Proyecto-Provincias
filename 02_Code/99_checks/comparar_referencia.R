@@ -184,38 +184,107 @@ reportar <- function(etiqueta, resultado, seccion = "") {
   invisible(n_ok == resultado$n)
 }
 
-# --- Ejecución ----------------------------------------------------------------
-if (sys.nframe() == 0 || identical(environment(), globalenv())) {
-  dir_ref <- file.path(RUTAS$referencia, "tablas")
-  if (!dir.exists(dir_ref)) {
+# --- Qué comparar --------------------------------------------------------------
+# Una entrada por tabla del informe que el pipeline debe reproducir. `referencia`
+# es el patrón con el que se busca la tabla en el índice del Anexo (por título,
+# nunca por número de archivo). `columnas` son las de la hoja generada.
+COMPARACIONES <- list(
+  list(seccion = "01_Generalidades", archivo = "distribucion_territorial.xlsx",
+       hoja = "distribucion_territorial", referencia = "Extensión territorial",
+       columnas = c("Área municipal (km²)", "Participación en el área provincial")),
+  list(seccion = "02_Demografia", archivo = "demografia.xlsx", hoja = "poblacion",
+       referencia = "Proyecciones de población",
+       columnas = c("Población total", "Población urbana", "Población rural")),
+  list(seccion = "02_Demografia", archivo = "demografia.xlsx", hoja = "poblacion",
+       referencia = "Densidad Poblacional",
+       columnas = "Densidad poblacional (hab/km²)"),
+  list(seccion = "02_Demografia", archivo = "demografia.xlsx",
+       hoja = "natalidad_mortalidad", referencia = "Tasa de Natalidad",
+       columnas = c("Tasa de Natalidad", "Tasa de Mortalidad",
+                    "Índice de Envejecimiento")),
+  list(seccion = "04_Gobernabilidad", archivo = "gobernabilidad.xlsx", hoja = "mdm",
+       referencia = "Medición de Desempeño Municipal", columnas = "MDM"),
+  list(seccion = "04_Gobernabilidad", archivo = "gobernabilidad.xlsx", hoja = "idf",
+       referencia = "Índice de Desempeño Fiscal", columnas = "IDF"),
+  list(seccion = "04_Gobernabilidad", archivo = "gobernabilidad.xlsx", hoja = "icm",
+       referencia = "Índice de Ciudades Modernas", columnas = "ICM"),
+  list(seccion = "08_Educacion", archivo = "educacion.xlsx", hoja = "educacion",
+       referencia = "Cobertura neta en educación", columnas = "Cobertura neta"),
+  list(seccion = "08_Educacion", archivo = "educacion.xlsx", hoja = "educacion",
+       referencia = "Deserción escolar", columnas = "Tasa de deserción"),
+  list(seccion = "08_Educacion", archivo = "educacion.xlsx", hoja = "educacion",
+       referencia = "Repitencia escolar", columnas = "Tasa de repitencia")
+)
+
+#' Corre todas las comparaciones declaradas y devuelve el resumen.
+comparar_todo <- function(id = 2) {
+  if (!dir.exists(file.path(RUTAS$referencia, "tablas"))) {
     stop("No hay referencia extraída. Ejecute primero:\n",
          "  python3 tests/extraer_referencia_anexo1.py", call. = FALSE)
   }
-
-  prov <- provincia(2)  # el Anexo 1 corresponde a esta provincia
+  prov <- provincia(id)   # el Anexo 1 corresponde a la provincia 2
   municipios <- crosswalk_provincias() |>
     filtrar_provincia(prov) |>
     dplyr::pull(municipio)
 
-  cat("== Comparación contra el Anexo 1 —", prov$etiqueta, "==\n\n")
+  cat("== Comparación contra el Anexo 1 —", prov$etiqueta, "==\n")
+  resultados <- list()
+  seccion_previa <- ""
 
-  # Sección 01 — distribución territorial (Tabla 6 del informe)
-  archivo <- file.path(RUTAS$outputs, prov$carpeta, "01_Generalidades",
-                       "distribucion_territorial.xlsx")
-  if (file.exists(archivo)) {
-    generada <- openxlsx2::wb_to_df(openxlsx2::wb_load(archivo), sheet = 1)
+  for (cmp in COMPARACIONES) {
+    ruta <- file.path(RUTAS$outputs, prov$carpeta, cmp$seccion, cmp$archivo)
+    if (!file.exists(ruta)) {
+      if (cmp$seccion != seccion_previa) {
+        cat("\n", cmp$seccion, " — sin generar todavía\n", sep = "")
+        seccion_previa <- cmp$seccion
+      }
+      next
+    }
+    if (cmp$seccion != seccion_previa) {
+      cat("\n", cmp$seccion, "\n", sep = "")
+      seccion_previa <- cmp$seccion
+    }
+
+    generada <- openxlsx2::wb_to_df(openxlsx2::wb_load(ruta), sheet = cmp$hoja)
     names(generada)[names(generada) == "Municipio"] <- "municipio"
-    ref <- leer_tabla_referencia(tabla_referencia("Extensión territorial"),
-                                 municipios)
-    cat("01_Generalidades / distribucion_territorial\n")
-    reportar("Área municipal (km²)",
-             comparar_columna(generada, "Área municipal (km²)", ref),
-             "01_Generalidades")
-    reportar("Participación en el área provincial",
-             comparar_columna(generada, "Participación en el área provincial", ref),
-             "01_Generalidades")
-  } else {
-    cat("01_Generalidades: no se ha generado todavía\n")
+    # Las hojas con varios años traen una fila por municipio y año; se compara
+    # el último año, que es el que publica el informe.
+    if ("Año" %in% names(generada)) {
+      ultimo <- suppressWarnings(max(as.numeric(generada[["Año"]]), na.rm = TRUE))
+      generada <- generada[which(as.numeric(generada[["Año"]]) == ultimo), ]
+    }
+    ref <- leer_tabla_referencia(tabla_referencia(cmp$referencia), municipios)
+
+    for (columna in cmp$columnas) {
+      if (!columna %in% names(generada)) {
+        cat(sprintf("  %-40s COLUMNA NO ENCONTRADA EN LA HOJA\n", columna))
+        next
+      }
+      ok <- reportar(columna, comparar_columna(generada, columna, ref), cmp$seccion)
+      resultados[[length(resultados) + 1]] <- data.frame(
+        seccion = cmp$seccion, columna = columna, coincide = isTRUE(ok)
+      )
+    }
   }
-  cat("\n")
+
+  resumen <- if (length(resultados)) do.call(rbind, resultados) else NULL
+  if (!is.null(resumen)) {
+    cat(sprintf("\n%d de %d columnas reproducen el informe.\n",
+                sum(resumen$coincide), nrow(resumen)))
+    fallan <- resumen[!resumen$coincide, ]
+    if (nrow(fallan)) {
+      cat("Pendientes de explicar:\n")
+      for (i in seq_len(nrow(fallan))) {
+        cat("  - ", fallan$seccion[i], " / ", fallan$columna[i], "\n", sep = "")
+      }
+    }
+  }
+  invisible(resumen)
+}
+
+# --- Ejecución ----------------------------------------------------------------
+.invocado <- sub("^--file=", "",
+                 commandArgs(FALSE)[grepl("^--file=", commandArgs(FALSE))])
+if (length(.invocado) && basename(.invocado[1]) == "comparar_referencia.R") {
+  comparar_todo()
 }
