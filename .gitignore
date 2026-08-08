@@ -36,9 +36,11 @@ _tmp_*.dta
 # --- Logs de ejecución batch ---
 *.log
 
-# --- Outputs de referencia (golden) generados con Stata ---
-# Se regeneran con 99_Legacy/codigo/stata_pipeline; solo se versiona tests/golden_provincia4/
+# --- Outputs de referencia para validar la migración ---
+# Se regeneran: tests/referencia con tests/extraer_referencia_anexo1.py (del Anexo 1,
+# que sí está versionado); tests/golden con tests/golden_run.do (requiere licencia Stata)
 tests/golden/
+tests/referencia/
 
 # --- Sistema operativo ---
 .DS_Store
