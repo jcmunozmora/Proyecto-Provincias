@@ -45,3 +45,6 @@ tests/referencia/
 # --- Sistema operativo ---
 .DS_Store
 Thumbs.db
+
+# --- Hojas de contacto para revisión visual (se regeneran) ---
+03_Outputs/*/_revision/
