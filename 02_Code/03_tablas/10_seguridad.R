@@ -139,7 +139,6 @@ ETIQUETAS_TERRITORIO <- c(
   c_ha <- .columnas_de_valor(
     bruto, c("CODMPIO", "MUNICIPIO", "CODDEPTO", "DEPARTAMENTO", "subreg", "prov")
   )[1]
-  anio_coca <- suppressWarnings(as.integer(c_ha))
 
   coca <- bruto |>
     dplyr::transmute(
@@ -187,8 +186,6 @@ ETIQUETAS_TERRITORIO <- c(
                  participacion_coca_dept_pct = "0.00%")
   )
 
-  attr(tabla, "anio") <- anio_coca
-  attr(tabla, "total_departamento") <- coca_departamento
   tabla
 }
 

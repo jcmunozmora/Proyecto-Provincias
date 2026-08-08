@@ -54,6 +54,20 @@ tabla_referencia <- function(patron) {
   file.path(RUTAS$referencia, "tablas", indice$archivo[i[1]])
 }
 
+#' Año al que se refiere una tabla del informe, tomado de su título
+#' ("… del Norte de Antioquia - 2024" → 2024). NA si el título no lo dice o
+#' menciona un rango de años.
+.anio_del_titulo <- function(patron) {
+  indice <- utils::read.csv(file.path(RUTAS$referencia, "tablas", "indice.csv"),
+                            encoding = "UTF-8", stringsAsFactors = FALSE)
+  i <- grep(patron, indice$titulo, ignore.case = TRUE)
+  if (!length(i)) return(NA_real_)
+  titulo <- indice$titulo[i[1]]
+  if (grepl("\\d{4}\\s*[-–]\\s*\\d{4}", titulo)) return(NA_real_)  # es un rango
+  anios <- as.numeric(unlist(regmatches(titulo, gregexpr("\\b20\\d{2}\\b", titulo))))
+  if (!length(anios)) NA_real_ else max(anios)
+}
+
 #' Extrae de una tabla del Anexo los pares (municipio, valor) de cada columna
 #' numérica, emparejando los municipios por nombre normalizado.
 #'
@@ -65,32 +79,43 @@ leer_tabla_referencia <- function(csv, municipios) {
                            encoding = "UTF-8")
   clave <- norm_txt(municipios)
 
-  # Columna de municipios: la que más nombres reconocidos contiene
+  # Puede haber MÁS DE UNA columna de municipios: varias tablas del informe
+  # ponen dos rankings lado a lado (municipio+valor | municipio+valor), cada uno
+  # ordenado por su propia columna. Cada columna numérica se asocia entonces con
+  # la columna de municipios que tenga inmediatamente a su izquierda.
   aciertos <- vapply(crudo, function(cl) sum(norm_txt(cl) %in% clave), integer(1))
-  if (max(aciertos) < length(municipios) * 0.6) {
-    return(NULL)  # no es una tabla municipal comparable
-  }
-  j_mun <- which.max(aciertos)
+  cols_mun <- which(aciertos >= length(municipios) * 0.6)
+  if (!length(cols_mun)) return(NULL)  # no es una tabla municipal comparable
 
-  filas <- which(norm_txt(crudo[[j_mun]]) %in% clave)
-  d <- crudo[filas, , drop = FALSE]
-  salida <- data.frame(municipio_norm = norm_txt(d[[j_mun]]), stringsAsFactors = FALSE)
-
-  # `decimales` guarda con cuántos decimales se publicó cada columna: el informe
-  # redondea (p. ej. 1,57 % aparece como 2 %), así que la comparación debe
-  # hacerse a esa precisión y no a la del pipeline.
+  columnas <- list()
   decimales <- integer(0)
   for (j in seq_along(crudo)) {
-    if (j == j_mun) next
-    v <- .num_ref(d[[j]])
-    if (sum(!is.na(v)) >= length(filas) * 0.6) {
-      nombre <- paste0("col_", j)
-      salida[[nombre]] <- v
-      texto <- stringr::str_squish(d[[j]])
-      dec <- stringr::str_match(texto, ",(\\d+)")[, 2]
-      decimales[nombre] <- max(c(0L, nchar(dec[!is.na(dec)])))
-    }
+    if (j %in% cols_mun) next
+    anteriores <- cols_mun[cols_mun < j]
+    if (!length(anteriores)) next
+    j_mun <- max(anteriores)
+
+    filas <- which(norm_txt(crudo[[j_mun]]) %in% clave)
+    if (!length(filas)) next
+    v <- .num_ref(crudo[[j]][filas])
+    if (sum(!is.na(v)) < length(filas) * 0.6) next
+
+    nombre <- paste0("col_", j)
+    columnas[[nombre]] <- data.frame(
+      municipio_norm = norm_txt(crudo[[j_mun]][filas]),
+      valor = v, stringsAsFactors = FALSE
+    )
+    names(columnas[[nombre]])[2] <- nombre
+
+    # Con cuántos decimales se publicó: el informe redondea (1,57 % sale como
+    # 2 %), así que la comparación se hace a esa precisión, no a la del pipeline.
+    dec <- stringr::str_match(stringr::str_squish(crudo[[j]][filas]), ",(\\d+)")[, 2]
+    decimales[nombre] <- max(c(0L, nchar(dec[!is.na(dec)])))
   }
+  if (!length(columnas)) return(NULL)
+
+  salida <- Reduce(function(a, b) merge(a, b, by = "municipio_norm", all = TRUE),
+                   columnas)
   attr(salida, "decimales") <- decimales
   salida
 }
@@ -116,10 +141,17 @@ comparar_columna <- function(generada, columna, referencia, tolerancia = 0.005) 
   for (cl in setdiff(names(referencia), "municipio_norm")) {
     m <- merge(g, referencia[, c("municipio_norm", cl)], by = "municipio_norm")
     if (nrow(m) == 0) next
+    # Las celdas vacías del informe no son diferencias: son datos que no se
+    # publicaron. Se excluyen de la comparación y se cuentan aparte. Solo
+    # cuentan las filas que sí cruzaron con la referencia; las de total no
+    # aparecen en el informe y no son "datos faltantes".
+    sin_publicar <- sum(is.na(m[[cl]]))
+    m <- m[!is.na(m[[cl]]), , drop = FALSE]
+    if (nrow(m) == 0) next
     ref <- m[[cl]]
     dec <- decimales[[cl]] %||% 2L
     # La referencia puede venir en % (38) donde el pipeline da proporción (0,38)
-    for (k in c(1, 100, 1 / 100)) {
+    for (k in c(1, 100, 1 / 100, 1 / 10)) {
       # Se compara a la precisión con que se publicó la cifra
       gen <- round(m$valor * k, dec)
       dif <- abs(gen - ref) / pmax(abs(ref), 1e-9)
@@ -127,6 +159,7 @@ comparar_columna <- function(generada, columna, referencia, tolerancia = 0.005) 
       ok <- mean(dif <= tolerancia)
       if (is.null(mejor) || ok > mejor$ok) {
         mejor <- list(ok = ok, col = cl, escala = k, decimales = dec, n = nrow(m),
+                      sin_publicar = sin_publicar,
                       peor = if (all(is.infinite(dif))) NA else max(dif[is.finite(dif)]),
                       detalle = data.frame(municipio = m$municipio_norm,
                                            generado = gen, publicado = ref,
@@ -171,7 +204,11 @@ reportar <- function(etiqueta, resultado, seccion = "") {
   } else {
     "DIFIERE"
   }
-  cat(sprintf("  %-40s %s  (%d/%d municipios)\n", etiqueta, estado, n_ok, resultado$n))
+  nota <- if (isTRUE(resultado$sin_publicar > 0)) {
+    sprintf(", %d sin dato en el informe", resultado$sin_publicar)
+  } else ""
+  cat(sprintf("  %-40s %s  (%d/%d municipios%s)\n", etiqueta, estado, n_ok,
+              resultado$n, nota))
 
   for (i in seq_len(nrow(malos))) {
     marca <- if (explicadas[i]) "errata conocida" else "REVISAR"
@@ -208,6 +245,21 @@ COMPARACIONES <- list(
        referencia = "Índice de Desempeño Fiscal", columnas = "IDF"),
   list(seccion = "04_Gobernabilidad", archivo = "gobernabilidad.xlsx", hoja = "icm",
        referencia = "Índice de Ciudades Modernas", columnas = "ICM"),
+  list(seccion = "06_Desarrollo_Rural", archivo = "desarrollo_rural.xlsx",
+       hoja = "inventario_pecuario",
+       referencia = "Inventario de especies pecuarias",
+       # La columna "Total" del informe incluye Aves, que PECUARIO_PROVINCIAS.xlsx
+       # no trae; no es comparable. Se validan las especies que sí están.
+       columnas = c("Bovinos", "Porcinos", "Equinos")),
+  list(seccion = "07_Ambiental", archivo = "ambiental.xlsx", hoja = "irca",
+       referencia = "IRCA en los municipios", columnas = "IRCA urbano"),
+  list(seccion = "07_Ambiental", archivo = "ambiental.xlsx",
+       hoja = "perdida_cobertura",
+       referencia = "pérdida de la cobertura arbórea",
+       columnas = "Pérdida de cobertura arbórea 2001-2023 (%)"),
+  list(seccion = "07_Ambiental", archivo = "ambiental.xlsx", hoja = "imrc",
+       referencia = "Índice Municipal de Gestión del Riesgo",
+       columnas = c("IMRC Exceso de lluvias", "IMRC Déficit de lluvias")),
   list(seccion = "08_Educacion", archivo = "educacion.xlsx", hoja = "educacion",
        referencia = "Cobertura neta en educación", columnas = "Cobertura neta"),
   list(seccion = "08_Educacion", archivo = "educacion.xlsx", hoja = "educacion",
@@ -247,13 +299,19 @@ comparar_todo <- function(id = 2) {
 
     generada <- openxlsx2::wb_to_df(openxlsx2::wb_load(ruta), sheet = cmp$hoja)
     names(generada)[names(generada) == "Municipio"] <- "municipio"
-    # Las hojas con varios años traen una fila por municipio y año; se compara
-    # el último año, que es el que publica el informe.
+    csv_ref <- tabla_referencia(cmp$referencia)
+    ref <- leer_tabla_referencia(csv_ref, municipios)
+
+    # Las hojas con varios años traen una fila por municipio y año. El año a
+    # comparar sale del título de la tabla publicada ("… - 2024"), no del
+    # último disponible: la fuente suele traer años posteriores al informe.
     if ("Año" %in% names(generada)) {
-      ultimo <- suppressWarnings(max(as.numeric(generada[["Año"]]), na.rm = TRUE))
-      generada <- generada[which(as.numeric(generada[["Año"]]) == ultimo), ]
+      anio <- cmp$anio %||% .anio_del_titulo(cmp$referencia)
+      anios <- suppressWarnings(as.numeric(generada[["Año"]]))
+      if (is.na(anio) || !anio %in% anios) anio <- max(anios, na.rm = TRUE)
+      generada <- generada[which(anios == anio), ]
+      cat(sprintf("  (año comparado: %d)\n", as.integer(anio)))
     }
-    ref <- leer_tabla_referencia(tabla_referencia(cmp$referencia), municipios)
 
     for (columna in cmp$columnas) {
       if (!columna %in% names(generada)) {

@@ -36,43 +36,72 @@
 
 if (!exists("RUTAS")) stop("Cargue 02_Code/R/00_config.R antes de este script.", call. = FALSE)
 
-# --- Lectura de matrices anchas con encabezado en dos filas -------------------
-# NATALIDAD y MORTALIDAD_INFANTIL traen el año en una fila y el subencabezado
-# ("Total"/"Tasa", "casos"/"Tasa x mil") en la siguiente. El .do los leía por
+# --- Lectura de matrices anchas con encabezado en varias filas ----------------
+# NATALIDAD, MORTALIDAD_INFANTIL y ASEGURAMIENTO traen el encabezado repartido en
+# dos filas (año o régimen arriba, subencabezado abajo). El .do las leía por
 # posición de columna de Excel (AE, AG, …), que se rompe en silencio si la fuente
-# cambia una columna. Aquí las columnas se localizan por su encabezado.
+# mueve una columna; aquí las columnas se localizan por su encabezado.
 
-#' Índice de la columna de cada año en una matriz de encabezado doble.
+#' Hoja completa, sin interpretar encabezados: fila 1 del data.frame = fila 1 de
+#' Excel, y todo como texto.
 #'
-#' @param ruta,hoja archivo y hoja de Excel.
-#' @param fila_anio fila (1-based) donde va el año; se rellena hacia la derecha
-#'   porque viene combinada sobre varias columnas.
-#' @param fila_sub fila con el subencabezado que distingue las columnas del año.
-#' @param patron_sub expresión regular (sin tildes, en minúsculas) que identifica
-#'   la columna buscada dentro de cada año.
-#' @param anios años pedidos.
-#' @return vector nombrado año -> índice de columna.
-.columnas_por_anio <- function(ruta, hoja, fila_anio, fila_sub, patron_sub, anios) {
-  cab <- readxl::read_excel(ruta, sheet = hoja, col_names = FALSE,
-                            n_max = max(fila_anio, fila_sub),
-                            .name_repair = "minimal") |> as.data.frame()
+#' Se lee de una sola pasada a propósito. Si el encabezado y los datos se leyeran
+#' por separado, readxl podría descartar una columna inicial vacía en una lectura
+#' y no en la otra (le pasa a NATALIDAD.xlsx, cuya columna A solo tiene datos a
+#' partir de la fila 4), y los índices dejarían de corresponder.
+.leer_hoja_cruda <- function(ruta, hoja) {
+  readxl::read_excel(ruta, sheet = hoja, col_names = FALSE, col_types = "text",
+                     .name_repair = "minimal") |>
+    as.data.frame(stringsAsFactors = FALSE)
+}
 
-  anio_fila <- suppressWarnings(as.numeric(as.character(unlist(cab[fila_anio, ]))))
-  # El año viene solo en la primera columna del bloque: se arrastra a la derecha.
-  for (j in seq_along(anio_fila)[-1]) {
-    if (is.na(anio_fila[j])) anio_fila[j] <- anio_fila[j - 1]
+#' Encabezado de dos filas resuelto en un vector por columna: la fila superior
+#' viene combinada sobre varias columnas, así que se arrastra hacia la derecha.
+.encabezado_arrastrado <- function(crudo, fila) {
+  x <- as.character(unlist(crudo[fila, ]))
+  for (j in seq_along(x)[-1]) {
+    if (is.na(x[j]) || !nzchar(stringr::str_squish(x[j]))) x[j] <- x[j - 1]
   }
-  sub <- norm_txt(as.character(unlist(cab[fila_sub, ])))
+  norm_txt(x)
+}
 
-  indices <- vapply(anios, function(a) {
-    j <- which(!is.na(anio_fila) & anio_fila == a & stringr::str_detect(sub, patron_sub))
+#' Índice de la columna que corresponde a un bloque del encabezado superior y a
+#' un subencabezado dado. Aborta si no existe.
+.columna_por_encabezado <- function(superior, sub, patron_superior, patron_sub, que) {
+  j <- which(stringr::str_detect(superior, patron_superior) &
+               stringr::str_detect(sub, patron_sub))
+  if (!length(j)) {
+    stop("No encuentro la columna '", que, "' en la fuente; ",
+         "¿cambió el encabezado del archivo?", call. = FALSE)
+  }
+  j[1]
+}
+
+#' Matriz ancha año x indicador -> data.frame con ind_mpio y una columna por año.
+#'
+#' @param fila_anio fila del encabezado con el año.
+#' @param fila_sub fila del subencabezado que distingue las columnas del año.
+#' @param patron_sub expresión regular (texto normalizado) de la columna buscada.
+#' @param fila_datos primera fila de datos.
+#' @param prefijo prefijo del nombre de las columnas de salida.
+.leer_matriz_anios <- function(ruta, hoja, fila_anio, fila_sub, patron_sub,
+                               anios, fila_datos, prefijo = "") {
+  crudo <- .leer_hoja_cruda(ruta, hoja)
+  anio  <- suppressWarnings(as.numeric(.encabezado_arrastrado(crudo, fila_anio)))
+  sub   <- norm_txt(as.character(unlist(crudo[fila_sub, ])))
+  datos <- crudo[seq(fila_datos, nrow(crudo)), , drop = FALSE]
+
+  salida <- data.frame(ind_mpio = as.integer(a_numero(datos[[1]])))
+  for (a in anios) {
+    j <- which(!is.na(anio) & anio == a & stringr::str_detect(sub, patron_sub))
     if (!length(j)) {
       stop("En ", basename(ruta), " (hoja '", hoja, "') no encuentro la columna '",
            patron_sub, "' del año ", a, ".", call. = FALSE)
     }
-    j[1]
-  }, integer(1))
-  stats::setNames(indices, as.character(anios))
+    salida[[paste0(prefijo, a)]] <- a_numero(datos[[j[1]]])
+  }
+  # Se descartan las filas de subregión y la de departamento: no son municipios.
+  salida[!is.na(salida$ind_mpio) & salida$ind_mpio >= 1000, , drop = FALSE]
 }
 
 # --- Insumos compartidos ------------------------------------------------------
@@ -97,17 +126,14 @@ if (!exists("RUTAS")) stop("Cargue 02_Code/R/00_config.R antes de este script.",
 
 #' Nacidos vivos por municipio y año (2020-2024): es el ponderador de los
 #' indicadores medidos POR NACIMIENTO (bajo peso, mortalidad infantil).
-#' Se descartan las filas de subregión (código "SR0x") y la de departamento
-#' (código 05 -> 5), que no son municipios.
+#' Hoja "Natalidad total": el año está en la fila 1 y la fila 2 distingue el
+#' total de nacimientos de la tasa bruta; los datos empiezan en la fila 4.
 .nacidos_vivos <- function(anios = 2020:2024) {
-  ruta <- entrada("NATALIDAD.xlsx")
-  cols <- .columnas_por_anio(ruta, "Natalidad total", fila_anio = 1, fila_sub = 2,
-                             patron_sub = "^total$", anios = anios)
-  d <- leer_excel(ruta, hoja = "Natalidad total", saltar = 3)
-
-  salida <- data.frame(ind_mpio = as.integer(a_numero(d[[1]])))
-  for (a in anios) salida[[paste0("nac", a)]] <- a_numero(d[[cols[[as.character(a)]]]])
-  salida[!is.na(salida$ind_mpio) & salida$ind_mpio >= 1000, , drop = FALSE]
+  .leer_matriz_anios(
+    entrada("NATALIDAD.xlsx"), "Natalidad total",
+    fila_anio = 1, fila_sub = 2, patron_sub = "^total$",
+    anios = anios, fila_datos = 4, prefijo = "nac"
+  )
 }
 
 #' Renombra las filas agregadas para dejar explícito el ponderador, como en el
@@ -269,35 +295,27 @@ ETIQUETAS_TERRITORIO <- c(
   # 3 dígitos -> ind_mpio = 5000 + cod. Régimen especial y de excepción =
   # Excepción + Fuerza Pública + INPEC. El encabezado ocupa dos filas: el
   # régimen en la primera y "Total Afiliados"/"% de cobertura" en la segunda.
-  ruta <- entrada("ASEGURAMIENTO_MUNICIPIOS.xlsx")
-  hoja <- "1. Población_Afiliada_Regimen"
+  ruta  <- entrada("ASEGURAMIENTO_MUNICIPIOS.xlsx")
+  hoja  <- "1. Población_Afiliada_Regimen"
+  crudo <- .leer_hoja_cruda(ruta, hoja)
 
-  cab <- readxl::read_excel(ruta, sheet = hoja, col_names = FALSE, n_max = 3,
-                            .name_repair = "minimal") |> as.data.frame()
-  regimen <- norm_txt(as.character(unlist(cab[2, ])))
-  for (j in seq_along(regimen)[-1]) {
-    if (is.na(regimen[j]) || !nzchar(regimen[j])) regimen[j] <- regimen[j - 1]
-  }
-  sub <- norm_txt(as.character(unlist(cab[3, ])))
+  regimen <- .encabezado_arrastrado(crudo, 2)   # fila con el nombre del régimen
+  sub     <- norm_txt(as.character(unlist(crudo[3, ])))  # "Total Afiliados" / "%"
+  datos   <- crudo[seq(6, nrow(crudo)), , drop = FALSE]  # datos desde la fila 6
 
-  col_regimen <- function(patron) {
-    j <- which(stringr::str_detect(regimen, patron) & startsWith(sub, "total"))
-    if (!length(j)) {
-      stop("No encuentro la columna de afiliados del régimen '", patron,
-           "' en ", basename(ruta), ".", call. = FALSE)
-    }
-    j[1]
+  afiliados <- function(patron, que) {
+    datos[[.columna_por_encabezado(regimen, sub, patron, "^total", que)]] |> a_numero()
   }
 
-  d <- leer_excel(ruta, hoja = hoja, saltar = 4)
   bruto <- data.frame(
-    cod = a_numero(d[[1]]),
-    afil_subsidiado   = a_numero(d[[col_regimen("regimen subsidiado")]]),
-    afil_contributivo = a_numero(d[[col_regimen("regimen contributivo")]]),
-    afil_exc          = a_numero(d[[col_regimen("regimen excepcion")]]),
-    afil_fp           = a_numero(d[[col_regimen("fuerza publica")]]),
-    afil_inpec        = a_numero(d[[col_regimen("^inpec")]])
+    cod               = a_numero(datos[[1]]),
+    afil_subsidiado   = afiliados("regimen subsidiado", "afiliados al subsidiado"),
+    afil_contributivo = afiliados("regimen contributivo", "afiliados al contributivo"),
+    afil_exc          = afiliados("regimen excepcion", "afiliados de excepción"),
+    afil_fp           = afiliados("fuerza publica", "afiliados de fuerza pública"),
+    afil_inpec        = afiliados("^inpec", "afiliados del INPEC")
   )
+  # Las filas de departamento y de subregión no traen código municipal.
   bruto <- bruto[!is.na(bruto$cod), , drop = FALSE]
 
   columnas <- c("afil_contributivo", "afil_subsidiado", "afil_especial")
@@ -348,19 +366,14 @@ ETIQUETAS_TERRITORIO <- c(
 .hoja_mortalidad_infantil <- function(prov, archivo, nacimientos, anios = 2020:2024) {
   # MORTALIDAD_INFANTIL.xlsx (hoja "INFANTIL"): matriz ancha con, por año, el
   # número de casos y la "Tasa x mil Nacidos vivos". Se toma la tasa.
-  ruta <- entrada("MORTALIDAD_INFANTIL.xlsx")
-  cols <- .columnas_por_anio(ruta, "INFANTIL", fila_anio = 4, fila_sub = 5,
-                             patron_sub = "^tasa", anios = anios)
-  d <- leer_excel(ruta, hoja = "INFANTIL", saltar = 4)
-
-  ancho <- data.frame(ind_mpio = as.integer(a_numero(d[[1]])))
-  for (a in anios) ancho[[as.character(a)]] <- a_numero(d[[cols[[as.character(a)]]]])
-  ancho <- ancho[!is.na(ancho$ind_mpio) & ancho$ind_mpio >= 1000, , drop = FALSE]
-
-  largo <- ancho |>
+  largo <- .leer_matriz_anios(
+    entrada("MORTALIDAD_INFANTIL.xlsx"), "INFANTIL",
+    fila_anio = 4, fila_sub = 5, patron_sub = "^tasa",
+    anios = anios, fila_datos = 6, prefijo = "tasa"
+  ) |>
     tidyr::pivot_longer(cols = -"ind_mpio", names_to = "anio",
                         values_to = "tasa_mort_infantil") |>
-    dplyr::mutate(anio = as.integer(.data$anio))
+    dplyr::mutate(anio = as.integer(stringr::str_remove(.data$anio, "^tasa")))
 
   nac_largo <- nacimientos |>
     tidyr::pivot_longer(cols = -"ind_mpio", names_to = "anio", values_to = "nac") |>

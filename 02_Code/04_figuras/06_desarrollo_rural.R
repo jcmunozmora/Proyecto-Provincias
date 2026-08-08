@@ -205,10 +205,11 @@ figuras_desarrollo_rural <- function(prov, tabla) {
   }
 
   titulo_fig2 <- if (n_bovinos * 2 >= n_pec) {
-    sprintf("Los bovinos son la especie predominante en %d de los %d municipios de la provincia",
-            n_bovinos, n_pec)
+    sprintf(paste("Los bovinos son la especie predominante en %d de los %d",
+                  "municipios de la provincia"), n_bovinos, n_pec)
   } else {
-    sprintf("%s %s desplazan a los bovinos: predominan en %d de los %d municipios de la provincia",
+    sprintf(paste("%s %s desplazan a los bovinos: predominan en %d de los %d",
+                  "municipios de la provincia"),
             articulo, tolower(serie_top), dominante$n[1], n_pec)
   }
 

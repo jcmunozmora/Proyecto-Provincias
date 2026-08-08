@@ -507,8 +507,15 @@ INDICADOR_DENSIDAD <- "Densidad empresarial (número de empresas por cada mil ha
 # eso multiplica por 1e9.
 # Se lee por posición desde la fila 4 (A = año, E = código de municipio,
 # H..U = ramas, J/M/V = agregados sectoriales, W = VA total).
-# NOTA: los tres sectores no suman el VA total en municipios mineros; las
-# distribuciones porcentuales se calculan siempre sobre el VA total.
+# NOTA 1: los tres agregados sectoriales NO suman el VA total en la serie a
+# precios constantes (queda un remanente sin distribuir de ~5 %); las
+# distribuciones porcentuales se calculan siempre sobre el VA total, igual que
+# en el .do, y la figura de composición muestra ese remanente aparte.
+# NOTA 2: el Anexo 1 publicó esta tabla a PRECIOS CORRIENTES (hoja
+# "PIB-Mpal 2015-2024 Corrient" del libro original PIB-VA_Mpal_...xlsm), no a
+# precios constantes. El derivado que usa el flujo solo trae la hoja de
+# constantes, así que las cifras de este pipeline y las del Anexo difieren por
+# el deflactor (2024: 134.481 vs 230.524 miles de millones en el departamento).
 # =============================================================================
 
 # Columna del insumo (posición) -> nombre interno.
@@ -521,6 +528,7 @@ COLUMNAS_VA <- c(
   T = "va_administracion", U = "va_artisticas", V = "va_terciario", W = "va_total"
 )
 
+# Ramas detalladas, en miles de millones de pesos constantes de 2015.
 RAMAS_VA <- c(
   va_agricultura    = "VA Agricultura, ganadería, caza, silvicultura y pesca",
   va_minas          = "VA Explotación de minas y canteras",
@@ -697,8 +705,16 @@ RAMAS_VA <- c(
 # -----------------------------------------------------------------------------
 # Fuente ANM (catastro minero). No trae código DANE: cruce por nombre de
 # municipio normalizado. Se cuentan los títulos ACTIVOS distintos por mineral;
-# un título con varios minerales cuenta en cada uno. Los minerales vienen en
-# una lista dentro de una celda, con paréntesis que a su vez contienen comas.
+# un título con varios minerales cuenta en cada uno y uno que cubre varios
+# municipios cuenta una sola vez. Los minerales vienen en una lista dentro de
+# una celda, con paréntesis que a su vez contienen comas.
+#
+# DIFERENCIA DELIBERADA CON EL .do: allí el cruce se hace contra la celda
+# `Municipios` COMPLETA, así que los títulos que cubren varios municipios
+# ("REMEDIOS, SEGOVIA") nunca casan y se pierden — 47 de los 102 títulos
+# activos de la provincia 2. Aquí la celda se separa por comas antes de cruzar,
+# que es lo que dice el propio comentario del .do y lo que reproduce las cifras
+# publicadas en el Anexo 1 (oro 49, plata 11, oro y concentrados 10).
 # =============================================================================
 
 .hoja_titulos_mineros <- function(prov) {
@@ -717,10 +733,14 @@ RAMAS_VA <- c(
     expediente = as.character(d[[c_exp]]),
     estado     = stringr::str_squish(as.character(d[[c_est]])),
     minerales  = as.character(d[[c_min]]),
-    clave      = normalizar_municipio(as.character(d[[c_mun]])),
+    municipios = as.character(d[[c_mun]]),
     stringsAsFactors = FALSE
   ) |>
-    dplyr::filter(.data$estado == "Activo", .data$clave %in% cw$clave)
+    dplyr::filter(.data$estado == "Activo") |>
+    tidyr::separate_rows("municipios", sep = ",") |>
+    dplyr::mutate(clave = normalizar_municipio(.data$municipios)) |>
+    dplyr::filter(.data$clave %in% cw$clave) |>
+    dplyr::distinct(.data$expediente, .data$minerales)
 
   if (nrow(titulos) == 0) {
     return(data.frame(grupo_mineral = "SIN TÍTULOS EN LA PROVINCIA",
@@ -919,10 +939,10 @@ tabla_economia <- function(prov) {
                   "prop_va_prov", "prop_va_dpto", "va_pc"),
     archivo, "valor_agregado",
     etiquetas = c(ETIQUETAS_TERRITORIO, anio = "Año",
-                  va_total      = "Valor agregado total (miles de millones $)",
-                  va_primario   = "VA actividades primarias (miles de millones $)",
-                  va_secundario = "VA actividades secundarias (miles de millones $)",
-                  va_terciario  = "VA actividades terciarias (miles de millones $)",
+                  va_total      = "Valor agregado total (miles de millones $ constantes de 2015)",
+                  va_primario   = "VA actividades primarias (miles de millones $ constantes de 2015)",
+                  va_secundario = "VA actividades secundarias (miles de millones $ constantes de 2015)",
+                  va_terciario  = "VA actividades terciarias (miles de millones $ constantes de 2015)",
                   prop_va_primario   = "Participación del VA - primarias",
                   prop_va_secundario = "Participación del VA - secundarias",
                   prop_va_terciario  = "Participación del VA - terciarias",
