@@ -15,13 +15,17 @@
 # construye antes de recorrer las provincias).
 # =============================================================================
 
-.raiz <- Sys.getenv("PROVINCIAS_ROOT", unset = "")
-if (!nzchar(.raiz)) {
-  .args <- commandArgs(trailingOnly = FALSE)
-  .f <- sub("^--file=", "", .args[grepl("^--file=", .args)])
-  .raiz <- if (length(.f)) dirname(dirname(normalizePath(.f[1]))) else getwd()
+# La configuración puede venir ya cargada (p. ej. si otro script hizo source de
+# este); en ese caso no se vuelve a resolver la raíz.
+if (!exists("RUTAS")) {
+  .raiz <- Sys.getenv("PROVINCIAS_ROOT", unset = "")
+  if (!nzchar(.raiz)) {
+    .args <- commandArgs(trailingOnly = FALSE)
+    .f <- sub("^--file=", "", .args[grepl("^--file=", .args)])
+    .raiz <- if (length(.f)) dirname(dirname(normalizePath(.f[1]))) else getwd()
+  }
+  source(file.path(.raiz, "02_Code", "R", "00_config.R"), encoding = "UTF-8")
 }
-source(file.path(.raiz, "02_Code", "R", "00_config.R"), encoding = "UTF-8")
 
 # --- Registro de secciones ----------------------------------------------------
 # Cada entrada dice qué script produce la tabla y cuál las figuras. Añadir una
@@ -107,7 +111,12 @@ correr_provincia <- function(id = NULL, secciones = NULL) {
 }
 
 # --- Ejecución directa --------------------------------------------------------
-if (!interactive()) {
+# Solo cuando este es el script invocado. Otros scripts hacen source de este
+# archivo para reutilizar SECCIONES y correr_provincia(); en ese caso no debe
+# generar nada por su cuenta.
+.invocado <- sub("^--file=", "",
+                 commandArgs(FALSE)[grepl("^--file=", commandArgs(FALSE))])
+if (length(.invocado) && basename(.invocado[1]) == "run_provincia.R") {
   .cli <- commandArgs(trailingOnly = TRUE)
   correr_provincia(if (length(.cli)) as.integer(.cli[1]) else NULL)
 }

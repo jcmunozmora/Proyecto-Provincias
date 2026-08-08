@@ -16,13 +16,17 @@
 # qué quedó sin correr y por qué.
 # =============================================================================
 
-.raiz <- Sys.getenv("PROVINCIAS_ROOT", unset = "")
-if (!nzchar(.raiz)) {
-  .args <- commandArgs(trailingOnly = FALSE)
-  .f <- sub("^--file=", "", .args[grepl("^--file=", .args)])
-  .raiz <- if (length(.f)) dirname(dirname(normalizePath(.f[1]))) else getwd()
+# La configuración puede venir ya cargada (p. ej. si otro script hizo source de
+# este); en ese caso no se vuelve a resolver la raíz.
+if (!exists("RUTAS")) {
+  .raiz <- Sys.getenv("PROVINCIAS_ROOT", unset = "")
+  if (!nzchar(.raiz)) {
+    .args <- commandArgs(trailingOnly = FALSE)
+    .f <- sub("^--file=", "", .args[grepl("^--file=", .args)])
+    .raiz <- if (length(.f)) dirname(dirname(normalizePath(.f[1]))) else getwd()
+  }
+  source(file.path(.raiz, "02_Code", "R", "00_config.R"), encoding = "UTF-8")
 }
-source(file.path(.raiz, "02_Code", "R", "00_config.R"), encoding = "UTF-8")
 source(file.path(RUTAS$codigo, "run_provincia.R"), encoding = "UTF-8")
 
 inicio <- Sys.time()
