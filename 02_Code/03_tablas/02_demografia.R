@@ -26,31 +26,62 @@
 # TASAS y del ÍNDICE de envejecimiento son promedios PONDERADOS por población
 # — sum(tasa_i * pob_i) / sum(pob_i) —, no promedios simples. Las poblaciones y
 # las áreas sí se suman.
+#
+# FUENTE DE POBLACIÓN — desviación deliberada respecto del .do:
+# El .do lee POBLACION MUNICIPAL.xlsx, pero esa serie NO es la que se publicó.
+# El informe salió de la serie PPED 2018-2042, cuyo derivado sí está versionado
+# (01_Derived/poblacion_total_2025.dta). Comprobado municipio a municipio: con
+# la serie PPED se reproduce el Anexo 1 en las seis columnas de población y en
+# la densidad; con POBLACION MUNICIPAL.xlsx las cifras difieren entre −3 % y
+# +10 % por municipio (Yarumal 44.770 vs 41.884 publicados).
+# Se usa la serie publicada, porque el pipeline debe poder rehacer el informe.
+# Si el derivado no está, se cae a POBLACION MUNICIPAL.xlsx y se avisa.
 # =============================================================================
 
 if (!exists("RUTAS")) stop("Cargue 02_Code/R/00_config.R antes de este script.", call. = FALSE)
 
 # --- Insumos compartidos por varias hojas ------------------------------------
 
+#' Categoría de área geográfica → nombre de columna del pipeline.
+.area_a_columna <- function(x) {
+  dplyr::case_when(
+    x == "Total"                             ~ "habitantes_total",
+    x == "Cabecera Municipal"                ~ "habitantes_cabecera",
+    x == "Centros Poblados y Rural Disperso" ~ "habitantes_rural",
+    TRUE                                     ~ NA_character_
+  )
+}
+
 #' Población municipal 2025 de todo el departamento, una fila por municipio y
 #' una columna por área geográfica (total, cabecera, resto rural).
+#'
+#' Usa la serie PPED, que es la que se publicó en el informe (ver la nota de la
+#' cabecera). Si ese derivado no está, cae a POBLACION MUNICIPAL.xlsx avisando
+#' de que las cifras no coincidirán con el Anexo 1.
 .poblacion_2025 <- function() {
-  d <- leer_excel(entrada("POBLACION MUNICIPAL.xlsx"), hoja = 1)
-  c_cod  <- col_req(d, "DPMP")
-  c_ano  <- col_req(d, "AÑO")
-  c_area <- col_req(d, "ÁREA GEOGRÁFICA")
-  c_pob  <- col_req(d, "Total General")
+  pped <- derivado("poblacion_total_2025.dta")
+
+  if (file.exists(pped)) {
+    d <- haven::read_dta(pped)
+    c_cod  <- col_req(d, "ind_mpio")
+    c_ano  <- col_req(d, "año", "anio", "ano")
+    c_area <- col_req(d, "area_geo")
+    c_pob  <- col_req(d, "Total")
+  } else {
+    warning("No está ", basename(pped), "; se usa POBLACION MUNICIPAL.xlsx, ",
+            "cuya serie NO reproduce las cifras del Anexo 1.", call. = FALSE)
+    d <- leer_excel(entrada("POBLACION MUNICIPAL.xlsx"), hoja = 1)
+    c_cod  <- col_req(d, "DPMP")
+    c_ano  <- col_req(d, "AÑO")
+    c_area <- col_req(d, "ÁREA GEOGRÁFICA")
+    c_pob  <- col_req(d, "Total General")
+  }
 
   d |>
     dplyr::filter(a_numero(.data[[c_ano]]) == 2025) |>
     dplyr::transmute(
       ind_mpio = as.integer(a_numero(.data[[c_cod]])),
-      area_cat = dplyr::case_when(
-        .data[[c_area]] == "Total"                             ~ "habitantes_total",
-        .data[[c_area]] == "Cabecera Municipal"                ~ "habitantes_cabecera",
-        .data[[c_area]] == "Centros Poblados y Rural Disperso" ~ "habitantes_rural",
-        TRUE                                                   ~ NA_character_
-      ),
+      area_cat = .area_a_columna(as.character(.data[[c_area]])),
       habitantes = a_numero(.data[[c_pob]])
     ) |>
     dplyr::filter(!is.na(.data$ind_mpio), !is.na(.data$area_cat)) |>

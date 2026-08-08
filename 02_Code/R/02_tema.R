@@ -236,7 +236,18 @@ fig_barras <- function(datos, categoria, valor, resaltar = NULL,
   rango <- range(c(0, d[["..val"]]), na.rm = TRUE)
   holgura <- diff(rango) * 0.12
 
-  p <- ggplot2::ggplot(d, ggplot2::aes(x = .data[["..val"]], y = .data[["..cat"]])) +
+  p <- ggplot2::ggplot(d, ggplot2::aes(x = .data[["..val"]], y = .data[["..cat"]]))
+
+  # La línea de referencia va ANTES de las barras y las etiquetas: dibujada
+  # después, cruza por encima de los valores cercanos al promedio y los tacha.
+  if (!is.null(referencia)) {
+    p <- p + ggplot2::geom_vline(
+      xintercept = referencia, linetype = "dashed",
+      linewidth = 0.35, color = COLOR$referencia
+    )
+  }
+
+  p <- p +
     ggplot2::geom_col(
       ggplot2::aes(fill = .data[["..destacado"]]),
       width = 0.68, show.legend = FALSE
@@ -253,9 +264,8 @@ fig_barras <- function(datos, categoria, valor, resaltar = NULL,
     theme_provincias(grilla = "ninguna", eje_x_visible = FALSE)
 
   if (!is.null(referencia)) {
+    # Solo el rótulo: la línea ya se dibujó bajo las barras (ver arriba).
     p <- p +
-      ggplot2::geom_vline(xintercept = referencia, linetype = "dashed",
-                          linewidth = 0.35, color = COLOR$referencia) +
       ggplot2::annotate(
         "text", x = referencia, y = Inf,
         label = etiqueta_referencia %||% paste0("Promedio: ", etiqueta(referencia)),

@@ -136,8 +136,13 @@ con_territorio <- function(datos, columna_codigo = NULL) {
 }
 
 #' Municipios de una provincia.
+#'
+#' El id se extrae antes del filtro: varias fuentes traen una columna llamada
+#' `prov`, que dentro de `dplyr::filter()` enmascararía el argumento `prov` de
+#' esta función y produciría "$ operator is invalid for atomic vectors".
 filtrar_provincia <- function(datos, prov) {
-  d <- dplyr::filter(datos, .data$id_provincia == prov$id)
+  id <- prov$id
+  d <- dplyr::filter(datos, .data$id_provincia == .env$id)
   if (nrow(d) == 0) {
     stop("Ningún municipio quedó tras filtrar por la provincia ", prov$id, " (", prov$etiqueta, "). ",
          "Verifique que los datos traigan el código DANE y que el cruce territorial se hizo.",
