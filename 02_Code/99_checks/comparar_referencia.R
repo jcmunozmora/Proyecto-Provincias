@@ -31,12 +31,36 @@ if (!exists("RUTAS")) {
   suppressWarnings(as.numeric(y))
 }
 
+#' Ruta del CSV de una tabla del Anexo, buscada por su título.
+#'
+#' Se busca por título y no por número de archivo: el orden de los archivos
+#' depende de cuántas tablas sin título (contenedores de mapas) haya antes, así
+#' que un número fijo se desactualiza en cuanto cambia el documento.
+#'
+#' @param patron texto o expresión regular que identifica la tabla,
+#'   p. ej. "Tabla 45." o "Cobertura neta".
+tabla_referencia <- function(patron) {
+  indice <- utils::read.csv(file.path(RUTAS$referencia, "tablas", "indice.csv"),
+                            encoding = "UTF-8", stringsAsFactors = FALSE)
+  i <- grep(patron, indice$titulo, ignore.case = TRUE, fixed = FALSE)
+  if (length(i) == 0) {
+    warning("Ninguna tabla del Anexo coincide con: ", patron, call. = FALSE)
+    return(NA_character_)
+  }
+  if (length(i) > 1) {
+    warning(length(i), " tablas coinciden con '", patron, "'; se usa la primera: ",
+            indice$titulo[i[1]], call. = FALSE)
+  }
+  file.path(RUTAS$referencia, "tablas", indice$archivo[i[1]])
+}
+
 #' Extrae de una tabla del Anexo los pares (municipio, valor) de cada columna
 #' numérica, emparejando los municipios por nombre normalizado.
 #'
-#' @param csv ruta del CSV extraído del Anexo.
+#' @param csv ruta del CSV extraído del Anexo (use `tabla_referencia()`).
 #' @param municipios nombres de municipio esperados (los de la provincia).
 leer_tabla_referencia <- function(csv, municipios) {
+  if (is.na(csv) || !file.exists(csv)) return(NULL)
   crudo <- utils::read.csv(csv, header = FALSE, colClasses = "character",
                            encoding = "UTF-8")
   clave <- norm_txt(municipios)
@@ -181,7 +205,8 @@ if (sys.nframe() == 0 || identical(environment(), globalenv())) {
   if (file.exists(archivo)) {
     generada <- openxlsx2::wb_to_df(openxlsx2::wb_load(archivo), sheet = 1)
     names(generada)[names(generada) == "Municipio"] <- "municipio"
-    ref <- leer_tabla_referencia(file.path(dir_ref, "tabla_02.csv"), municipios)
+    ref <- leer_tabla_referencia(tabla_referencia("Extensión territorial"),
+                                 municipios)
     cat("01_Generalidades / distribucion_territorial\n")
     reportar("Área municipal (km²)",
              comparar_columna(generada, "Área municipal (km²)", ref),

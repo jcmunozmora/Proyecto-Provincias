@@ -51,14 +51,31 @@ def texto_celda(celda) -> str:
     return " ".join(celda.text.split())
 
 
-def titulos_por_orden(documento) -> list[str]:
-    """Títulos de tabla/figura en el orden en que aparecen en el documento."""
-    encontrados = []
-    for parrafo in documento.paragraphs:
-        texto = parrafo.text.strip()
-        if PATRON_TITULO.match(texto):
-            encontrados.append(texto)
-    return encontrados
+def titulo_de_cada_tabla(documento) -> list[str]:
+    """Título que le corresponde a cada tabla, en el orden de las tablas.
+
+    Recorre el cuerpo del documento en su orden real (párrafos y tablas
+    intercalados) y asigna a cada tabla el último título "Tabla N." que la
+    precede. Emparejar por posición en dos listas independientes no funciona:
+    el documento tiene tablas sin título (las que solo contienen mapas) y eso
+    desfasa todas las asignaciones siguientes.
+    """
+    cuerpo = documento.element.body
+    titulos: list[str] = []
+    ultimo = ""
+    parrafos = {p._element: p for p in documento.paragraphs}
+    tablas = {t._element: t for t in documento.tables}
+
+    for hijo in cuerpo.iterchildren():
+        if hijo in parrafos:
+            texto = parrafos[hijo].text.strip()
+            m = PATRON_TITULO.match(texto)
+            if m and m.group(1).lower() == "tabla":
+                ultimo = texto
+        elif hijo in tablas:
+            titulos.append(ultimo)
+            ultimo = ""  # un título no se reutiliza para dos tablas
+    return titulos
 
 
 def main() -> int:
@@ -69,8 +86,7 @@ def main() -> int:
     DIR_FIGURAS.mkdir(parents=True, exist_ok=True)
 
     documento = docx.Document(str(DOCX))
-    titulos = titulos_por_orden(documento)
-    titulos_tabla = [t for t in titulos if t.lower().startswith("tabla")]
+    titulos_tabla = titulo_de_cada_tabla(documento)
 
     # --- Tablas --------------------------------------------------------------
     indice: list[dict] = []
@@ -83,8 +99,7 @@ def main() -> int:
         with destino.open("w", newline="", encoding="utf-8") as fh:
             csv.writer(fh).writerows(filas)
 
-        # Emparejar por posición con los títulos "Tabla N." del cuerpo del texto
-        titulo = titulos_tabla[i - 2] if 2 <= i <= len(titulos_tabla) + 1 else ""
+        titulo = titulos_tabla[i - 1] if i <= len(titulos_tabla) else ""
         indice.append(
             {
                 "archivo": destino.name,
@@ -111,7 +126,8 @@ def main() -> int:
     print(f"Referencia extraída en {SALIDA.relative_to(RAIZ)}/")
     print(f"  tablas:  {len(indice)}  (+ indice.csv)")
     print(f"  figuras: {n_figuras}")
-    print(f"  títulos de tabla detectados en el texto: {len(titulos_tabla)}")
+    con_titulo = sum(1 for f in indice if f["titulo"])
+    print(f"  tablas con título asociado: {con_titulo} de {len(indice)}")
     return 0
 
 
