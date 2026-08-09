@@ -51,5 +51,9 @@ tests/referencia/
 .DS_Store
 Thumbs.db
 
-# --- Hojas de contacto para revisión visual (se regeneran) ---
-03_Outputs/*/_revision/
+# --- Salidas del pipeline (se regeneran con: Rscript 02_Code/run_all.R) ---
+# 144 MB de tablas y figuras que cambian en cada corrida. No se versionan: el
+# pipeline las rehace en unos minutos y el repositorio no carga con binarios
+# que se reescriben enteros cada vez.
+03_Outputs/*/
+!03_Outputs/README.md
