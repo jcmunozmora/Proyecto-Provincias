@@ -7,9 +7,8 @@
 #
 # ETAPAS
 #   1. Homogeneización  01_Data/00_Inputs  -> 01_Data/01_Derived
-#   2. Consolidación    derivados          -> base municipal única
-#   3. Tablas           derivados          -> 03_Outputs/<Prov>/<NN>/*.xlsx
-#   4. Figuras          tablas             -> .../figuras/*.{png,pdf}
+#   2. Tablas           derivados          -> 03_Outputs/<Prov>/<NN>/*.xlsx
+#   3. Figuras          tablas             -> .../figuras/*.{png,pdf}
 #
 # Es idempotente: se puede volver a correr las veces que haga falta. Una etapa
 # que falle por un insumo ausente no detiene el resto; el resumen final dice
@@ -67,28 +66,12 @@ estado_homog <- lapply(HOMOGENEIZACION, function(s) {
 })
 estado_homog <- as.data.frame(do.call(rbind, estado_homog), stringsAsFactors = FALSE)
 
-# --- Etapa 2: consolidación ---------------------------------------------------
-CONSOLIDACION <- character(0)  # se llena a medida que se migre 00_BuildData.do
-
-if (length(CONSOLIDACION)) {
-  message("\n#########################################################")
-  message("#  ETAPA 2 — Consolidación")
-  message("#########################################################")
-  for (s in CONSOLIDACION) {
-    ruta <- file.path(RUTAS$codigo, "02_consolidacion", s)
-    if (file.exists(ruta)) {
-      tryCatch(source(ruta, encoding = "UTF-8"),
-               error = function(e) message("  [FALLO] ", s, ": ", conditionMessage(e)))
-    }
-  }
-}
-
-# --- Etapas 3 y 4: tablas y figuras por provincia -----------------------------
+# --- Etapas 2 y 3: tablas y figuras por provincia -----------------------------
 cli <- commandArgs(trailingOnly = TRUE)
 ids <- if (length(cli)) as.integer(cli) else PROVINCIAS$id
 
 message("\n#########################################################")
-message("#  ETAPAS 3 y 4 — Tablas y figuras (", length(ids), " provincias)")
+message("#  ETAPAS 2 y 3 — Tablas y figuras (", length(ids), " provincias)")
 message("#########################################################")
 
 resumen <- do.call(rbind, lapply(ids, function(i) {

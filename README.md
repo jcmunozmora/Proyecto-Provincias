@@ -69,7 +69,6 @@ Definidas en un solo lugar: la tabla `PROVINCIAS` de
   run_provincia.R  una provincia
   R/               configuración, utilidades y sistema visual
   01_homogeneizacion/  cada fuente cruda → un derivado limpio
-  02_consolidacion/    derivados → base municipal única
   03_tablas/           una sección temática → su .xlsx
   04_figuras/          esas tablas → figuras PNG y PDF
   99_checks/           verificación del pipeline
@@ -87,8 +86,6 @@ tests/             referencia de validación
         ▼
 01_Data/01_Derived        datos homogeneizados a nivel municipal
         │
-        │  02_Code/02_consolidacion/       cruce en una base única
-        ▼
         │  02_Code/03_tablas/              filtro por provincia, agregados,
         │                                  totales de provincia/subregión/depto.
         ▼

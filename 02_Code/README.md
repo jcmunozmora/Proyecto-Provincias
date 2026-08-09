@@ -12,7 +12,6 @@ Cómo está organizado el pipeline y cómo trabajar sobre él.
 │   └── 02_tema.R       paleta, tema ggplot2, exportación de figuras
 ├── 01_homogeneizacion/ una fuente cruda → un derivado limpio
 │   └── externos/       scripts heredados que corrían fuera del repositorio
-├── 02_consolidacion/   derivados → base municipal única
 ├── 03_tablas/          una sección temática → su .xlsx
 ├── 04_figuras/         esas tablas → figuras PNG y PDF
 │   ├── DISENO.md       manual de diseño (léalo antes de tocar una figura)
