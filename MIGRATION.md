@@ -36,11 +36,12 @@ escribió:
 | `02_Code/Tablas_Diagnostico/NN_Seccion.do` | `02_Code/03_tablas/NN_seccion.R` (+ figuras en `02_Code/04_figuras/NN_seccion.R`) |
 | `02_Code/00_Homogeneizacion_Inputs/*.do` | `02_Code/01_homogeneizacion/*.R` |
 | `02_Code/00_BuildData.do` (bloque del crosswalk) | `02_Code/01_homogeneizacion/crosswalk_territorial.R` |
-| `02_Code/00_BuildData.do` (resto) | `02_Code/02_consolidacion/` |
-| `02_Code/01_BuildFinalData.R` | `02_Code/02_consolidacion/build_final_data.R` |
+| `02_Code/00_BuildData.do` (resto) | retirado: alimentaba un análisis PCA cuyo código nunca estuvo en el repositorio |
+| `02_Code/01_BuildFinalData.R` | retirado por lo mismo (`99_Legacy/codigo/stata_pipeline/`) |
 | `02_Code/Figuras R/` (openxlsx2 + encharter) | `02_Code/04_figuras/` (ggplot2) |
 | `02_Code/Tablas_Diagnostico/Figuras R/` | eliminado (era copia byte a byte) |
 | `02_Code/02_Tablas_*.do`, `03_Gráficos.do` | `99_Legacy/codigo/` |
+| Todo el Stata vigente | `99_Legacy/codigo/stata_pipeline/` (con su README) |
 | Los `.R` con rutas `C:/Users/espin/…` | `02_Code/01_homogeneizacion/externos/` |
 
 **El bloque de rutas ya no existe.** Antes cada `.do` empezaba con
@@ -68,6 +69,10 @@ rutas. Si necesita fijarla, use la variable de entorno `PROVINCIAS_ROOT`.
 | Gráficos incrustados dentro del `.xlsx` | `03_Outputs/<Provincia>/<NN_Seccion>/figuras/*.{png,pdf}` |
 
 Ya no hay que correr Stata y después R en ese orden: un solo comando hace todo.
+
+**Las salidas ya no se versionan.** Eran 1.519 archivos y 144 MB que se
+reescriben enteros en cada corrida. Se regeneran con `Rscript 02_Code/run_all.R`
+en unos minutos.
 
 ---
 

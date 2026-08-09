@@ -200,11 +200,26 @@ retiró. No lo ejecuta nada; está para poder auditar la migración.
 
 ## Historial de cambios
 
-**2026-08-08** Reestructuración del repositorio: pipeline migrado a R de punta a
-punta, rutas portables (se acabaron las rutas `D:\` de cada máquina), sistema de
-diseño de figuras documentado y verificado, eliminación de ~117 MB de archivos
-duplicados, retiro del código y los datos obsoletos a `99_Legacy/`, y validación
-de las tablas contra el informe publicado.
+**2026-08-08** Reestructuración completa del repositorio y migración del
+pipeline a R de punta a punta:
+
+- Un solo comando produce las 11 provincias: 110 juegos de tablas y 704 figuras
+  en unos 6 minutos. Antes había que correr Stata y luego R, en ese orden, y
+  editar rutas a mano en cada `.do`.
+- Rutas portables: se acabaron las cuatro raíces `D:\` y `C:\Users\…` de cuatro
+  máquinas distintas.
+- Sistema de diseño de figuras documentado y verificado
+  ([DISENO.md](02_Code/04_figuras/DISENO.md)): paleta EAFIT validada para
+  daltonismo y contraste, salida en PNG 300 dpi y PDF vectorial.
+- Validación automática contra el informe publicado: **43 de 43 columnas**
+  reproducen el Anexo 1.
+- Limpieza: ~117 MB de duplicados exactos eliminados, 14 archivos de basura
+  retirados del control de versiones, y el código y los datos obsoletos movidos
+  a [99_Legacy/](99_Legacy/).
+- Errores del pipeline anterior corregidos: la provincia 5 habría desaparecido
+  al actualizarse su Excel, se perdían 47 de 102 títulos mineros, y los
+  ponderadores de salud estaban corrompidos por un desplazamiento de columnas.
+  Detalle en [99_Legacy/codigo/stata_pipeline/README.md](99_Legacy/codigo/stata_pipeline/README.md).
 
 **2026-04-28** Nueva rama "actualización": primeros archivos actualizados de las
 bases de datos. Main se mantiene con los datos "de base".
