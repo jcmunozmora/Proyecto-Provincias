@@ -10,20 +10,25 @@ No edite estos archivos a mano: el pipeline los sobrescribe.
 
 ## Con productor en el repositorio (se regeneran solos)
 
+Todos salen de un script de `02_Code/01_homogeneizacion/`, salvo donde se
+indique otra cosa. El pipeline los regenera con `Rscript 02_Code/run_all.R`.
+
 | Archivo | Lo produce |
 |---|---|
-| `codigos_provincias.dta` | `02_Code/01_homogeneizacion/crosswalk_territorial.R` |
-| `subreg_completo.dta` | `02_Code/01_homogeneizacion/crosswalk_territorial.R` |
-| `ECV_nbi_pobreza.dta` | homogeneización ECV |
-| `ECV_oficial_agregados.dta` | homogeneización ECV oficial |
-| `estructura_productiva.{dta,xlsx}`, `imca_2022.{dta,xlsx}` | homogeneización DEyC |
-| `20250506 EDUCACION.xlsx` | homogeneización educación |
-| `seguridad_policia.xlsx` | homogeneización Policía Nacional |
-| `poblacion_municipal_total_2025*.dta`, `poblacion_total_2025.dta` | homogeneización población |
-| `infraestructura_internet_2025.dta` | homogeneización infraestructura |
-| `uso_del_suelo_pota.xlsx` | homogeneización uso del suelo |
-| `percepcion_seguridad.{dta,xlsx}` | homogeneización percepción de seguridad |
-| `01_final_data.dta`, `01_final_data_long.xlsx`, `01_DATOS_INICIALES*.xlsx`, `label.xlsx` | consolidación |
+| `codigos_provincias.dta`, `subreg_completo.dta` | `crosswalk_territorial.R` |
+| `ECV_nbi_pobreza.dta`, `ECV_raw.dta` | `ecv.R` |
+| `ECV_oficial_agregados.dta` | `ecv_oficial_agregados.R` |
+| `estructura_productiva.{dta,xlsx}`, `imca_2022.{dta,xlsx}` | `deyc.R` |
+| `20250506 EDUCACION.xlsx` | `educacion.R` |
+| `20260504_SEGURIDAD_SALUD_DEFICT_VIVIENDA.*` | `salud_seguridad.R` (parcial, ver abajo) |
+| `infraestructura_internet_2025.dta` | `infraestructura_internet.R` |
+| `seguridad_policia.xlsx` | `seguridad_policia.R` |
+| `poblacion_total_2025.dta`, `poblacion_municipal_total_2025.dta` | `poblacion_municipal.R` |
+| `uso_del_suelo_pota.xlsx` | `uso_suelo.R` |
+| `percepcion_seguridad.{dta,xlsx}` | `percepcion_seguridad.R` |
+| `01_final_data*.dta`, `01_DATOS_INICIALES*.xlsx`, `label.xlsx` | pipeline anterior (consolidación, sin migrar) |
+
+`ECV_raw.dta` no se versiona (38 MB): lo regenera `ecv.R`.
 
 ## Sin productor en el repositorio ⚠️
 
@@ -44,9 +49,19 @@ Familia `*_PROVINCIAS.xlsx` (agregados provinciales preparados a mano):
 Otros sin productor:
 
 `ESTADO_CATASTRO.xlsx` · `VALOR_AGREGADO_20152024_MUNICIPIOS.xlsx` ·
-`indice_gobierno_digital_2024.dta` · `20260504_SEGURIDAD_SALUD_DEFICT_VIVIENDA.*`
-(el nombre trae el error "DEFICT"; es el archivo vigente, no lo renombre sin
-actualizar a quienes lo leen)
+`indice_gobierno_digital_2024.dta`
+
+**`20260504_SEGURIDAD_SALUD_DEFICT_VIVIENDA.*`** merece explicación aparte.
+Parece un derivado y está en esta carpeta, pero **en realidad es un insumo
+curado**: de sus 36 columnas, el pipeline calcula tres (tasa de natalidad, de
+mortalidad y crecimiento vegetativo) y las otras 33 se armaron a mano en Excel
+sin fuente en el repositorio. El script de Stata leía este archivo y lo
+reescribía encima, de modo que cada corrida acumulaba transformaciones sobre su
+propio resultado; el script en R descarta al leer las tres columnas que él mismo
+produce, así que toda corrida parte del mismo tablero. Lo correcto sería moverlo
+a `00_Inputs`, pero eso obliga a actualizar a sus tres lectores. El nombre trae
+el error de escritura "DEFICT": es el archivo vigente, no lo renombre sin
+actualizar a quienes lo leen.
 
 Los `*_dicc` (`IRCA_dicc`, `natalidad_dicc`, `mortalidad_iam_dicc`,
 `i_datalake_ges_pub_dicc`, `infraestructura_municipios_dicc`,

@@ -128,9 +128,17 @@ tamaños no se eligen figura por figura.
 ## Verificación
 
 ```bash
+# Revisión estática del repositorio (rutas, insumos, nombres, secciones)
+Rscript 02_Code/99_checks/check_pipeline.R
+
 # Compara las tablas generadas contra las cifras del informe publicado
 Rscript 02_Code/99_checks/comparar_referencia.R
+
+# Junta las figuras de una provincia en una imagen, para revisarlas de un vistazo
+ID_PROVINCIA=2 Rscript 02_Code/99_checks/hoja_contactos.R
 ```
+
+Estado actual de la validación: **43 de 43 columnas reproducen el informe**.
 
 El Anexo 1 (`00_Documentos/`) es el informe entregado para la provincia
 Bioenergética del Norte: 52 tablas ya curadas. Sirve de patrón para validar que
@@ -144,25 +152,44 @@ python3 tests/extraer_referencia_anexo1.py
 
 ## Huecos conocidos
 
-Cosas que hay que saber antes de confiar en un resultado:
+Cosas que hay que saber antes de confiar en un resultado.
 
-1. **Cinco fuentes no están en el repositorio** (pesan demasiado para GitHub) y
-   hay que pedírselas al equipo. Ver
-   [01_Data/00_Inputs/README.md](01_Data/00_Inputs/README.md).
-2. **Veinte derivados se construyen a mano en Excel** y ningún script los
-   regenera: la familia `*_PROVINCIAS.xlsx` y algunos más. Es el principal
-   hueco de reproducibilidad. Ver
-   [01_Data/01_Derived/README.md](01_Data/01_Derived/README.md).
-3. **El nombre de la provincia 5 tenía una errata** (`POVINCIA` en vez de
-   `PROVINCIA`) que el código Stata daba por buena. El Excel fuente ya se
-   corrigió, así que ese código dejaría hoy a la provincia 5 sin municipios; el
-   pipeline en R empareja de forma tolerante y no depende de la grafía.
-4. **`20260504_SEGURIDAD_SALUD_DEFICT_VIVIENDA`** tiene un error de escritura en
-   el nombre ("DEFICT"), pero es el archivo vigente. No lo renombre sin
-   actualizar a quienes lo leen.
-5. **El Anexo 1 publica 122 km² para Toledo** donde la fuente da 122,578 (que
-   redondea a 123). Los otros 15 valores de esa tabla redondean bien, así que es
-   una errata del informe; está registrada en el comparador.
+**Fuentes que no están en el repositorio.** Cinco archivos pesan demasiado para
+GitHub y hay que pedírselos al equipo; los scripts que los usan se detienen con
+un mensaje que dice cuál falta. Ver
+[01_Data/00_Inputs/README.md](01_Data/00_Inputs/README.md).
+
+**Veinte derivados se construyen a mano en Excel** y ningún script los regenera
+(la familia `*_PROVINCIAS.xlsx` y algunos más). Es el mayor hueco de
+reproducibilidad que queda: si uno se pierde o se desactualiza, hay que
+rehacerlo a mano. Ver
+[01_Data/01_Derived/README.md](01_Data/01_Derived/README.md).
+
+**Algunos insumos son más nuevos que el informe.** Las cifras de salud
+(bajo peso, vectores, suicidios, aseguramiento) usan cortes de 2023 y de
+diciembre de 2025, frente al 2024 publicado; el valor agregado está a precios
+constantes de 2015 y el Anexo se publicó a corrientes; el uso del suelo rural y
+las víctimas del conflicto vienen de versiones posteriores de la fuente. El
+pipeline da la cifra actual, que no siempre es la del informe de 2026.
+
+**Dos decisiones metodológicas cambian resultados frente al informe.** Donde el
+Anexo promedió tasas municipales, el pipeline calcula la tasa agregada
+(ponderada por población o por nacimientos, según el indicador), que es lo
+correcto y lo que pide el código original. Y `agregar_totales()` define la
+subregión como los municipios que el DANE le asigna, mientras el informe a veces
+suma solo los de la provincia que están en esa subregión.
+
+**Erratas del informe ya verificadas** (registradas en el comparador, no hay que
+volver a perseguirlas): la Tabla 50 intercambia las filas de Angostura y Anorí
+en mortalidad infantil, y la tabla de valor agregado hace lo mismo con esos dos
+municipios; Toledo aparece con 122 km² donde la fuente da 122,578.
+
+**Nombres que no se deben "arreglar".** El nombre de la provincia 5 tenía una
+errata (`POVINCIA`) que el código Stata daba por buena; el Excel ya se corrigió,
+así que ese código dejaría hoy a la provincia 5 sin municipios. El pipeline en R
+empareja de forma tolerante y no depende de la grafía. Y
+`20260504_SEGURIDAD_SALUD_DEFICT_VIVIENDA` conserva el error "DEFICT" porque es
+el archivo vigente.
 
 ---
 
