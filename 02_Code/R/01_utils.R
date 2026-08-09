@@ -311,17 +311,43 @@ leer_excel <- function(ruta, hoja = 1, saltar = 0) {
 }
 
 #' Convierte a numérico columnas que vienen como texto con separadores locales
-#' ("1.234,5" o "1,234.5").
+#' ("1.234,5" o "1,234.5") o en notación científica ("5.37E-2").
 a_numero <- function(x) {
   if (is.numeric(x)) return(x)
   y <- stringr::str_squish(as.character(x))
-  y <- stringr::str_replace_all(y, "[^0-9,.\\-]", "")
-  # Si hay coma y punto, el último separador que aparece es el decimal
-  decimal_coma <- stringr::str_detect(y, ",\\d{1,2}$") & !stringr::str_detect(y, "\\.\\d{1,2}$")
-  y <- ifelse(decimal_coma,
-              stringr::str_replace_all(y, "\\.", "") |> stringr::str_replace(",", "."),
-              stringr::str_replace_all(y, ",", ""))
-  suppressWarnings(as.numeric(y))
+
+  # La notación científica se deja pasar tal cual: quitarle la E la convertiría
+  # en un número equivocado, y varias fuentes POTA vienen así.
+  cientifica <- stringr::str_detect(y, "^[+-]?\\d+(\\.\\d+)?[eE][+-]?\\d+$")
+
+  z <- stringr::str_replace_all(y, "[^0-9,.\\-]", "")
+
+  # Qué separador es el decimal, en orden de prioridad:
+  #  1. Un separador repetido siempre es de miles ("1.234.567", "1,234,567").
+  #  2. Si aparecen los dos, el decimal es el último ("1.234,5" colombiano;
+  #     "1,234.5" anglosajón).
+  #  3. Si solo hay un punto, es de miles cuando va seguido de exactamente tres
+  #     dígitos ("7.550" son 7.550, no 7,55); si no, es decimal ("13.89").
+  #  4. Una coma sola siempre es decimal ("-0,5").
+  n_coma  <- stringr::str_count(z, ",")
+  n_punto <- stringr::str_count(z, "\\.")
+  ult_coma  <- as.integer(regexpr(",[^,]*$", z))
+  ult_punto <- as.integer(regexpr("\\.[^.]*$", z))
+
+  decimal_es_coma <- n_coma == 1 &
+    (n_punto > 1 | ult_coma > ult_punto)
+  decimal_es_punto <- n_punto == 1 & !decimal_es_coma &
+    (n_coma > 0 | !stringr::str_detect(z, "\\.\\d{3}$"))
+
+  z <- ifelse(
+    decimal_es_coma,
+    stringr::str_remove_all(z, "\\.") |> stringr::str_replace(",", "."),
+    ifelse(decimal_es_punto,
+           stringr::str_remove_all(z, ","),
+           stringr::str_remove_all(z, "[.,]"))
+  )
+
+  suppressWarnings(as.numeric(ifelse(cientifica, y, z)))
 }
 
 `%||%` <- function(a, b) if (is.null(a)) b else a

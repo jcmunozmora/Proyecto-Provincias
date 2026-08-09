@@ -51,10 +51,18 @@ estado_homog <- lapply(HOMOGENEIZACION, function(s) {
   if (!file.exists(ruta)) return(c(script = s, estado = "NO EXISTE", detalle = ""))
   r <- tryCatch({ source(ruta, encoding = "UTF-8"); NULL }, error = function(e) e)
   if (is.null(r)) {
-    c(script = s, estado = "OK", detalle = "")
+    return(c(script = s, estado = "OK", detalle = ""))
+  }
+  # Que falte una de las fuentes grandes no versionadas es una situación
+  # prevista, no un fallo del código: se distingue para no alarmar.
+  msg <- conditionMessage(r)
+  if (grepl("Falta el insumo", msg, fixed = TRUE)) {
+    fuente <- basename(trimws(strsplit(msg, "\n")[[1]][2]))
+    message("  [sin insumo] ", s, " — falta ", fuente)
+    c(script = s, estado = "SIN INSUMO", detalle = fuente)
   } else {
-    message("  [FALLO] ", s, ": ", conditionMessage(r))
-    c(script = s, estado = "FALLO", detalle = conditionMessage(r))
+    message("  [FALLO] ", s, ": ", msg)
+    c(script = s, estado = "FALLO", detalle = msg)
   }
 })
 estado_homog <- as.data.frame(do.call(rbind, estado_homog), stringsAsFactors = FALSE)
@@ -97,7 +105,13 @@ message("#########################################################")
 
 message("\nHomogeneización:")
 for (i in seq_len(nrow(estado_homog))) {
-  message(sprintf("  %-34s %s", estado_homog$script[i], estado_homog$estado[i]))
+  message(sprintf("  %-30s %-11s %s", estado_homog$script[i],
+                  estado_homog$estado[i], estado_homog$detalle[i]))
+}
+if (any(estado_homog$estado == "SIN INSUMO")) {
+  message("\n  'SIN INSUMO' no es un error: son las fuentes que no caben en el",
+          " repositorio.\n  Pídalas al equipo (ver el README) o siga con los",
+          " derivados ya generados.")
 }
 
 message("\nSecciones por estado:")
