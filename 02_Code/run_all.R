@@ -32,10 +32,15 @@ source(file.path(RUTAS$codigo, "run_provincia.R"), encoding = "UTF-8")
 inicio <- Sys.time()
 
 # --- Etapa 1: homogeneización -------------------------------------------------
-# Orden: el crosswalk territorial va primero porque casi todo lo demás lo usa.
-HOMOGENEIZACION <- c(
-  "crosswalk_territorial.R"
-)
+# Los scripts se descubren solos: añadir una homogeneización es dejar el .R en
+# 02_Code/01_homogeneizacion/, sin tocar este archivo. Lo único fijo es que el
+# crosswalk territorial va primero, porque casi todo lo demás lo usa.
+PRIMERO <- "crosswalk_territorial.R"
+HOMOGENEIZACION <- {
+  todos <- list.files(file.path(RUTAS$codigo, "01_homogeneizacion"),
+                      pattern = "\\.R$")
+  c(intersect(PRIMERO, todos), sort(setdiff(todos, PRIMERO)))
+}
 
 message("\n#########################################################")
 message("#  ETAPA 1 — Homogeneización de insumos")

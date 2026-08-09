@@ -11,6 +11,11 @@
 01_Data/00_Inputs/Data anonimizada encuesta percepcion 2018-2025.xlsx
 01_Data/00_Inputs/Indicadores_ECV2023.xlsx
 
+# --- Derivados grandes y regenerables ---
+# ECV_raw.dta (38 MB) lo produce 02_Code/01_homogeneizacion/ecv.R a partir de
+# INDICADORES ECV 2023 MUNICIPIOS.xlsx, que sí está versionado.
+ECV_raw.dta
+
 # --- Temporales de Excel ---
 ~$*
 **/~$*
