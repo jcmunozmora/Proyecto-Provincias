@@ -147,8 +147,8 @@ stopifnot(
 )
 
 # --- Guardar ------------------------------------------------------------------
-archivo <- derivado("20250506 EDUCACION.xlsx")
-openxlsx2::write_xlsx(ancho, archivo, sheet_name = "Sheet1", na.strings = "")
+
+escribir_derivado(ancho, "20250506 EDUCACION")
 
 message("  20250506 EDUCACION.xlsx: ", nrow(ancho), " municipios x ",
         length(encontrados), " indicadores")

@@ -129,8 +129,8 @@ subreg_completo <- mpios |>
   dplyr::arrange(ind_mpio)
 
 # --- Guardar ------------------------------------------------------------------
-haven::write_dta(crosswalk, derivado("codigos_provincias.dta"))
-haven::write_dta(subreg_completo, derivado("subreg_completo.dta"))
+escribir_derivado(crosswalk, "codigos_provincias")
+escribir_derivado(subreg_completo, "subreg_completo")
 
 message("  codigos_provincias.dta: ", nrow(crosswalk), " municipios en ",
         dplyr::n_distinct(crosswalk$id_provincia), " provincias")

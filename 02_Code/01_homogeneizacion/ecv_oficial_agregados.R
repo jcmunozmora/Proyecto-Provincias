@@ -161,6 +161,6 @@ if (length(faltantes)) {
 }
 stopifnot("hay territorios duplicados" = !any(duplicated(ancho[, c("nivel", "key")])))
 
-haven::write_dta(ancho, derivado("ECV_oficial_agregados.dta"))
+escribir_derivado(ancho, "ECV_oficial_agregados")
 message("  ECV_oficial_agregados.dta: ", nrow(ancho), " territorios x ",
         length(columnas), " columnas de indicador")

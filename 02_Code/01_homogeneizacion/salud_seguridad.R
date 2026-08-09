@@ -9,11 +9,11 @@
 # INPUTS:
 #   01_Data/00_Inputs/NATALIDAD.xlsx      (hoja "Natalidad total";  tasa 2023)
 #   01_Data/00_Inputs/DATOS SALUD.xlsx    (hoja "tasa mortalidad general"; 2024)
-#   01_Data/01_Derived/20260504_SEGURIDAD_SALUD_DEFICT_VIVIENDA.xlsx  (hoja
-#       "Data") — tablero curado a mano; ver "LIMITACIÓN" más abajo.
+#   01_Data/00_Inputs/curados/20260504_SEGURIDAD_SALUD_DEFICT_VIVIENDA.xlsx
+#       (hoja "Data") — tablero curado a mano; ver "LIMITACIÓN" más abajo.
 # OUTPUTS:
-#   01_Data/01_Derived/20260504_SEGURIDAD_SALUD_DEFICT_VIVIENDA.{dta,xlsx}
-#   (125 filas x 36 columnas; la hoja "Diccionario" del .xlsx se conserva)
+#   01_Data/01_Derived/20260504_SEGURIDAD_SALUD_DEFICT_VIVIENDA.parquet
+#   (125 filas x 36 columnas)
 #
 # ETAPA DEL PIPELINE: 1. homogeneización
 # Migrado de 00_Homogeneizacion_Inputs/20260504_HOMOGENEIZACIÓN_SALUD_SEGURIDAD.do
@@ -35,12 +35,12 @@
 # Reconstruirlas exigiría rehacer 31 indicadores desde ~10 fuentes distintas sin
 # especificación escrita, así que aquí NO se inventan: se leen tal cual.
 #
-# El .do original leía y reescribía el mismo archivo (líneas 50, 83, 85, 117 y
-# 119), de modo que cada corrida acumulaba transformaciones sobre su propia
-# salida. Este script evita ese riesgo de la única forma posible mientras el
-# tablero no tenga fuente cruda: antes de recalcular, DESCARTA las tres columnas
-# que él mismo produce. Así una segunda corrida parte siempre del mismo tablero
-# curado y da exactamente el mismo resultado que la primera.
+# El .do original leía y reescribía el MISMO archivo, de modo que cada corrida
+# acumulaba transformaciones sobre su propia salida. Aquí el problema queda
+# cerrado de raíz separando las dos cosas que antes convivían en un archivo:
+#   - el tablero curado es un INSUMO y vive en 01_Data/00_Inputs/curados/
+#   - el resultado es un DERIVADO y se escribe en parquet en 01_Data/01_Derived/
+# Leer y escribir en sitios distintos hace imposible la acumulación.
 # =============================================================================
 
 if (!exists("RUTAS")) {
@@ -76,7 +76,7 @@ ORDEN <- c(
 
 # --- 1. Tablero curado --------------------------------------------------------
 
-ruta_maestro <- derivado(paste0(MAESTRO, ".xlsx"))
+ruta_maestro <- entrada("curados", paste0(MAESTRO, ".xlsx"), obligatorio = FALSE)
 if (!file.exists(ruta_maestro)) {
   stop("Falta el tablero curado:\n  ", ruta_maestro, "\n",
        "No se puede reconstruir: 31 de sus 36 columnas no tienen fuente cruda ",
@@ -207,18 +207,11 @@ stopifnot(
 )
 
 # --- Guardar ------------------------------------------------------------------
-# El .xlsx se reescribe solo en la hoja "Data"; "Diccionario" se conserva.
-#
-# En el .xlsx el código va como texto con cero a la izquierda ("05001") y no
-# como número: es la forma en que está hoy el archivo, la que usan las fuentes
-# de tasas para cruzar y la que permite que este script vuelva a leer su propia
-# salida sin romper el emparejamiento. En el .dta va numérico, como lo deja el
-# `destring` del .do.
-haven::write_dta(salud_seguridad, derivado(paste0(MAESTRO, ".dta")))
-
-para_excel <- salud_seguridad
-para_excel$ind_mpio <- sprintf("%05d", as.integer(para_excel$ind_mpio))
-escribir_hoja(para_excel, ruta_maestro, "Data")
+# El código de municipio va numérico. En el .xlsx del que se lee viene como
+# texto con cero a la izquierda ("05001"), pero eso era necesario cuando el
+# script releía su propia salida; ahora la entrada y la salida son archivos
+# distintos y el tipo puede ser el correcto.
+escribir_derivado(salud_seguridad, MAESTRO)
 
 message("  ", MAESTRO, ": ", nrow(salud_seguridad), " municipios x ",
         ncol(salud_seguridad), " columnas")

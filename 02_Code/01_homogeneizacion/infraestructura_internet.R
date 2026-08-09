@@ -41,5 +41,5 @@ if (nrow(antioquia) == 0) {
        call. = FALSE)
 }
 
-haven::write_dta(antioquia, derivado("infraestructura_internet_2025.dta"))
+escribir_derivado(antioquia, "infraestructura_internet_2025")
 message("  infraestructura_internet_2025.dta: ", nrow(antioquia), " registros")

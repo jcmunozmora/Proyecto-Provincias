@@ -20,7 +20,7 @@
 #       OJO: esos cuatro derivados NO los produce ningún script del pipeline;
 #       se arman a mano en Excel. Si se rehace la cadena de derivados hay que
 #       reconstruirlos aparte.
-#   01_Data/01_Derived/seguridad_policia.xlsx         (4 hojas de 2025)
+#   01_Data/01_Derived/seguridad_policia.parquet      (tabla larga por delito y año)
 #   01_Data/01_Derived/poblacion_total_2025.dta
 #   01_Data/01_Derived/percepcion_seguridad.dta
 #       Este derivado reemplaza el import del crudo "Data anonimizada encuesta
@@ -104,7 +104,7 @@ ETIQUETAS_TERRITORIO <- c(
 
 #' Población municipal 2025, área geográfica "Total" (denominador de las tasas).
 .poblacion_2025 <- function() {
-  haven::read_dta(derivado("poblacion_total_2025.dta")) |>
+  leer_derivado("poblacion_total_2025") |>
     dplyr::filter(.data$area_geo == "Total") |>
     dplyr::transmute(
       ind_mpio = as.integer(.data$ind_mpio),
@@ -135,7 +135,7 @@ ETIQUETAS_TERRITORIO <- c(
 
   # Hectáreas de coca: la única columna de valor del archivo (el encabezado es
   # el año, "2023" en la entrega vigente).
-  bruto <- leer_excel(derivado("CULTILICITOS_PROVINCIAS.xlsx"), hoja = "Coca")
+  bruto <- leer_excel(entrada("curados", "CULTILICITOS_PROVINCIAS.xlsx"), hoja = "Coca")
   c_ha <- .columnas_de_valor(
     bruto, c("CODMPIO", "MUNICIPIO", "CODDEPTO", "DEPARTAMENTO", "subreg", "prov")
   )[1]
@@ -195,7 +195,7 @@ ETIQUETAS_TERRITORIO <- c(
 # encabezados largos y se toman por posición.
 
 .hoja_evoa <- function(prov, archivo) {
-  bruto <- leer_excel(derivado("EVOA_PROVINCIAS.xlsx"), hoja = "EVOA")
+  bruto <- leer_excel(entrada("curados", "EVOA_PROVINCIAS.xlsx"), hoja = "EVOA")
   valores <- .columnas_de_valor(
     bruto, c("codigo municipio", "Municipio", "Subregión", "Provincia", "Año")
   )
@@ -259,27 +259,32 @@ ETIQUETAS_TERRITORIO <- c(
 # las tasas municipales: es el criterio del .do y difiere del informe
 # publicado, que promedió las tasas municipales (ver el informe de migración).
 
-HOJAS_DELITOS <- c(
-  n_hurtos     = "hurtos_personas_2025",
-  n_homicidios = "homicidios_2025",
-  n_violencia  = "violencia_intrafamiliar_2025",
-  n_sexuales   = "delitos_sexuales_2025"
+# El derivado trae los cuatro delitos en una tabla larga (columnas `delito` y
+# `anio`); aquí se toma el año más reciente y se pasa a ancho.
+DELITOS <- c(
+  n_hurtos     = "hurtos_personas",
+  n_homicidios = "homicidios",
+  n_violencia  = "violencia_intrafamiliar",
+  n_sexuales   = "delitos_sexuales"
 )
+ANIO_DELITOS <- 2025
 
 .hoja_delitos <- function(prov, archivo) {
-  ruta <- derivado("seguridad_policia.xlsx")
+  policia <- leer_derivado("seguridad_policia")
+  policia <- policia[policia$anio == ANIO_DELITOS, , drop = FALSE]
+  col_total <- col_req(policia, paste0("total_", ANIO_DELITOS))
 
-  conteos <- purrr::reduce(names(HOJAS_DELITOS), function(acumulado, nombre) {
-    hoja <- leer_excel(ruta, hoja = HOJAS_DELITOS[[nombre]])
+  conteos <- purrr::reduce(names(DELITOS), function(acumulado, nombre) {
+    filas <- policia[policia$delito == DELITOS[[nombre]], , drop = FALSE]
     d <- data.frame(
-      ind_mpio = as.integer(a_numero(hoja[[col_req(hoja, "ind_mpio")]])),
-      valor    = a_numero(hoja[[col_req(hoja, "total_2025")]])
+      ind_mpio = as.integer(a_numero(filas[[col_req(filas, "ind_mpio")]])),
+      valor    = a_numero(filas[[col_total]])
     )
     names(d)[2] <- nombre
     if (is.null(acumulado)) d else dplyr::full_join(acumulado, d, by = "ind_mpio")
   }, .init = NULL)
 
-  columnas <- c(names(HOJAS_DELITOS), "pob")
+  columnas <- c(names(DELITOS), "pob")
   universo <- conteos |>
     dplyr::inner_join(.poblacion_2025(), by = "ind_mpio") |>
     con_territorio() |>
@@ -332,7 +337,7 @@ HOJAS_DELITOS <- c(
 # hecho, así que las sumas por municipio no se leen como conteo de víctimas.
 
 .hojas_victimas <- function(prov, archivo) {
-  bruto <- leer_excel(derivado("HECHOSVICTIM_PROVINCIAS.xlsx"), hoja = "hechos victim")
+  bruto <- leer_excel(entrada("curados", "HECHOSVICTIM_PROVINCIAS.xlsx"), hoja = "hechos victim")
   valores <- .columnas_de_valor(
     bruto, c("Código DANE", "Municipio", "subreg", "prov", "Tipo de fila",
              "Hecho victimizante")
@@ -431,7 +436,7 @@ HOJAS_DELITOS <- c(
 # sale siempre del crosswalk.
 
 .hojas_srtdaf <- function(prov, archivo) {
-  bruto <- leer_excel(derivado("SRDAFT_PROVINCIAS.xlsx"), hoja = "SRTDAF")
+  bruto <- leer_excel(entrada("curados", "SRDAFT_PROVINCIAS.xlsx"), hoja = "SRTDAF")
   columnas <- c("n_solicitudes", "n_predios", "n_titulares")
 
   universo <- bruto |>
@@ -531,10 +536,9 @@ ETIQUETAS_PERCEPCION <- c(
 )
 
 .hojas_percepcion <- function(prov, archivo) {
-  ruta <- derivado("percepcion_seguridad.dta")
-  if (!file.exists(ruta)) {
-    message("  [aviso] Falta ", basename(ruta),
-            ": se omite el bloque de percepción de seguridad (4 hojas).")
+  if (!existe_derivado("percepcion_seguridad")) {
+    message("  [aviso] Falta el derivado percepcion_seguridad: se omite el ",
+            "bloque de percepción de seguridad (4 hojas).")
     return(NULL)
   }
 
@@ -546,7 +550,7 @@ ETIQUETAS_PERCEPCION <- c(
     return(NULL)
   }
 
-  encuesta <- haven::read_dta(ruta) |>
+  encuesta <- leer_derivado("percepcion_seguridad") |>
     dplyr::mutate(
       B_SUBREGION        = a_numero(.data$B_SUBREGION),
       FACTOR_PONDERACION = a_numero(.data$FACTOR_PONDERACION),

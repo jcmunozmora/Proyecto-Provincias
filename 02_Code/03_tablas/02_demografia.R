@@ -59,17 +59,16 @@ if (!exists("RUTAS")) stop("Cargue 02_Code/R/00_config.R antes de este script.",
 #' cabecera). Si ese derivado no está, cae a POBLACION MUNICIPAL.xlsx avisando
 #' de que las cifras no coincidirán con el Anexo 1.
 .poblacion_2025 <- function() {
-  pped <- derivado("poblacion_total_2025.dta")
-
-  if (file.exists(pped)) {
-    d <- haven::read_dta(pped)
+  if (existe_derivado("poblacion_total_2025")) {
+    d <- leer_derivado("poblacion_total_2025")
     c_cod  <- col_req(d, "ind_mpio")
     c_ano  <- col_req(d, "año", "anio", "ano")
     c_area <- col_req(d, "area_geo")
     c_pob  <- col_req(d, "Total")
   } else {
-    warning("No está ", basename(pped), "; se usa POBLACION MUNICIPAL.xlsx, ",
-            "cuya serie NO reproduce las cifras del Anexo 1.", call. = FALSE)
+    warning("No está el derivado poblacion_total_2025; se usa ",
+            "POBLACION MUNICIPAL.xlsx, cuya serie NO reproduce el Anexo 1.",
+            call. = FALSE)
     d <- leer_excel(entrada("POBLACION MUNICIPAL.xlsx"), hoja = 1)
     c_cod  <- col_req(d, "DPMP")
     c_ano  <- col_req(d, "AÑO")
@@ -279,13 +278,13 @@ if (!exists("RUTAS")) stop("Cargue 02_Code/R/00_config.R antes de este script.",
 # --- Hoja 3: natalidad, mortalidad e índice de envejecimiento ----------------
 
 .hoja_natalidad_mortalidad <- function(prov, archivo, pesos) {
-  vitales <- haven::read_dta(derivado("20260504_SEGURIDAD_SALUD_DEFICT_VIVIENDA.dta")) |>
+  vitales <- leer_derivado("20260504_SEGURIDAD_SALUD_DEFICT_VIVIENDA") |>
     dplyr::transmute(
       ind_mpio        = as.integer(.data$ind_mpio),
       tasa_natalidad  = as.numeric(.data$tasa_natalidad),
       tasa_mortalidad = as.numeric(.data$tasa_mortalidad)
     )
-  envejecimiento <- haven::read_dta(derivado("poblacion_municipal_total_2025_dicc.dta")) |>
+  envejecimiento <- haven::read_dta(entrada("curados", "poblacion_municipal_total_2025_dicc.dta")) |>
     dplyr::transmute(ind_mpio = as.integer(.data$ind_mpio),
                      I_enve_T = as.numeric(.data$I_enve_T))
 

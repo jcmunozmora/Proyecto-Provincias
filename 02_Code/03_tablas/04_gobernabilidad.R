@@ -57,7 +57,7 @@ if (!exists("RUTAS")) stop("Cargue 02_Code/R/00_config.R antes de este script.",
 
 # --- 4.1 Medición de Desempeño Municipal (MDM) -------------------------------
 .mdm_provincia <- function(prov) {
-  d <- leer_excel(derivado("MDM_PROVINCIAS.xlsx"), hoja = "Base")
+  d <- leer_excel(entrada("curados", "MDM_PROVINCIAS.xlsx"), hoja = "Base")
   c_cod  <- col_req(d, "cmpio", "codigo dane", "ind_mpio")
   c_anio <- col_req(d, "año", "anio")
   c_ges  <- col_req(d, "gestion")
@@ -86,7 +86,7 @@ if (!exists("RUTAS")) stop("Cargue 02_Code/R/00_config.R antes de este script.",
 
 # --- 4.2 Índice de Desempeño Fiscal (IDF) ------------------------------------
 .idf_provincia <- function(prov) {
-  d <- leer_excel(derivado("IDF_PROVINCIAS.xlsx"), hoja = "IDF")
+  d <- leer_excel(entrada("curados", "IDF_PROVINCIAS.xlsx"), hoja = "IDF")
   c_cod  <- col_req(d, "Codigo", "Código", "ind_mpio")
   c_anio <- col_req(d, "año", "anio")
   c_res  <- col_req(d, "Resultados")
@@ -117,7 +117,7 @@ if (!exists("RUTAS")) stop("Cargue 02_Code/R/00_config.R antes de este script.",
 
 # --- 4.3 Indicador Ley 617 ----------------------------------------------------
 .ley617_provincia <- function(prov) {
-  d <- leer_excel(derivado("617_PROVINCIAS.xlsx"), hoja = "617")
+  d <- leer_excel(entrada("curados", "617_PROVINCIAS.xlsx"), hoja = "617")
   c_cod  <- col_req(d, "Código", "Codigo", "ind_mpio")
   c_anio <- col_req(d, "Año", "anio")
   c_icld <- col_req(d, "ICDL", "ICLD")
@@ -151,7 +151,7 @@ if (!exists("RUTAS")) stop("Cargue 02_Code/R/00_config.R antes de este script.",
 #' Universo ICM: los 125 municipios de Antioquia, por año, con territorio y
 #' población (el ponderador de los promedios).
 .icm_universo <- function() {
-  d <- leer_excel(derivado("ICM_PROVINCIAS.xlsx"), hoja = "BD_ICM_Municipal")
+  d <- leer_excel(entrada("curados", "ICM_PROVINCIAS.xlsx"), hoja = "BD_ICM_Municipal")
   c_cod  <- col_req(d, "Divipola", "cod_mpio", "ind_mpio")
   c_anio <- col_req(d, "AÑO", "anio")
 
@@ -173,7 +173,7 @@ if (!exists("RUTAS")) stop("Cargue 02_Code/R/00_config.R antes de este script.",
 #' Es el valor publicado por el DNP para Antioquia; NO se recalcula agregando los
 #' 125 municipios (daría un número parecido pero distinto).
 .icm_departamento <- function() {
-  d <- leer_excel(derivado("ICM_PROVINCIAS.xlsx"),
+  d <- leer_excel(entrada("curados", "ICM_PROVINCIAS.xlsx"),
                   hoja = "BD_ICM_Departamental", saltar = 4)
   c_anio <- col_req(d, "AÑO", "anio")
   out <- dplyr::tibble(anio = as.integer(a_numero(d[[c_anio]])))

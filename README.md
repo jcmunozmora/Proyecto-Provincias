@@ -63,7 +63,8 @@ Definidas en un solo lugar: la tabla `PROVINCIAS` de
 00_Documentos/     informes, fichas técnicas, documentos metodológicos
 01_Data/
   00_Inputs/       fuentes crudas — solo lectura, nadie escribe aquí
-  01_Derived/      datos procesados por el pipeline
+    curados/       tableros que el equipo arma a mano en Excel
+  01_Derived/      datos que produce el pipeline (todos en Parquet)
 02_Code/
   run_all.R        pipeline completo
   run_provincia.R  una provincia
@@ -98,6 +99,10 @@ tests/             referencia de validación
 
 Cada figura deja sus datos exactos en una hoja del `.xlsx` de la sección, para
 que cualquier cifra publicada se pueda rastrear hasta su origen.
+
+Los datos intermedios (`01_Derived`) están todos en **Parquet**: un solo formato,
+comprimido y tipado, legible desde R, Python y Stata 18+. En el código se leen
+con `leer_derivado("nombre")`, sin extensión.
 
 ### Las 10 secciones
 
@@ -156,11 +161,12 @@ GitHub y hay que pedírselos al equipo; los scripts que los usan se detienen con
 un mensaje que dice cuál falta. Ver
 [01_Data/00_Inputs/README.md](01_Data/00_Inputs/README.md).
 
-**Veinte derivados se construyen a mano en Excel** y ningún script los regenera
-(la familia `*_PROVINCIAS.xlsx` y algunos más). Es el mayor hueco de
-reproducibilidad que queda: si uno se pierde o se desactualiza, hay que
-rehacerlo a mano. Ver
-[01_Data/01_Derived/README.md](01_Data/01_Derived/README.md).
+**Veinticinco insumos se arman a mano en Excel** y ningún script los regenera
+(la familia `*_PROVINCIAS.xlsx` y algunos tableros más). Es el mayor hueco de
+reproducibilidad que queda: si uno se pierde, hay que rehacerlo a mano. Están
+separados del resto en
+[01_Data/00_Inputs/curados/](01_Data/00_Inputs/curados/), precisamente para que
+no se confundan con lo que sí se regenera.
 
 **Algunos insumos son más nuevos que el informe.** Las cifras de salud
 (bajo peso, vectores, suicidios, aseguramiento) usan cortes de 2023 y de

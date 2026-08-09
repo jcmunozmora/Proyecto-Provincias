@@ -93,9 +93,7 @@ etiqueta_municipio <- function(codigos) {
 #' Municipios con provincia y subregión (88 municipios en las 11 provincias).
 crosswalk_provincias <- function() {
   if (is.null(.cache$prov)) {
-    ruta <- derivado("codigos_provincias.dta")
-    if (!file.exists(ruta)) ruta <- entrada("códigos_provincias.dta")  # ubicación heredada
-    .cache$prov <- haven::read_dta(ruta) |>
+    .cache$prov <- leer_derivado("codigos_provincias") |>
       dplyr::mutate(
         ind_mpio = as.integer(ind_mpio),
         nvl_label = as.character(nvl_label),
@@ -114,9 +112,7 @@ crosswalk_provincias <- function() {
 #' completos, no solo los municipios que pertenecen a alguna provincia).
 crosswalk_subregiones <- function() {
   if (is.null(.cache$subreg)) {
-    ruta <- derivado("subreg_completo.dta")
-    if (!file.exists(ruta)) ruta <- entrada("subreg_completo.dta")
-    .cache$subreg <- haven::read_dta(ruta) |>
+    .cache$subreg <- leer_derivado("subreg_completo") |>
       dplyr::mutate(ind_mpio = as.integer(ind_mpio),
                     subregion_full = as.character(subregion_full))
   }
@@ -299,6 +295,62 @@ escribir_hoja <- function(datos, archivo, hoja, etiquetas = NULL, formatos = NUL
 #' sección, para que la cifra publicada siempre sea trazable (DISENO.md §8).
 escribir_datos_figura <- function(datos, archivo, id_figura) {
   escribir_hoja(datos, archivo, paste0("_", id_figura))
+}
+
+# --- Lectura y escritura de datos derivados -----------------------------------
+# Los derivados del pipeline se guardan en un único formato: Parquet. Es
+# columnar, comprimido y tipado — pesa una fracción de lo que pesaban los .dta
+# y .xlsx que había antes, conserva los tipos sin reconversiones y se lee
+# igual desde R, Python y Stata 18+.
+#
+# Los insumos siguen en el formato en que los entrega su fuente (Excel casi
+# siempre); para esos está `leer_excel()`.
+
+#' Lee un derivado del pipeline.
+#'
+#' @param nombre nombre sin extensión ("codigos_provincias"). Si el parquet no
+#'   está pero sí una versión heredada en .dta o .xlsx, la lee y avisa: así el
+#'   pipeline sigue corriendo mientras se termina de convertir todo.
+leer_derivado <- function(nombre, hoja = 1) {
+  nombre <- sub("\\.(parquet|dta|xlsx)$", "", nombre)
+  pq <- derivado(paste0(nombre, ".parquet"))
+  if (file.exists(pq)) return(as.data.frame(arrow::read_parquet(pq)))
+
+  for (ext in c(".dta", ".xlsx")) {
+    heredado <- derivado(paste0(nombre, ext))
+    if (file.exists(heredado)) {
+      warning("Se leyó ", basename(heredado), " en vez del parquet. ",
+              "Regenere el derivado para convertirlo.", call. = FALSE)
+      return(if (ext == ".dta") as.data.frame(haven::read_dta(heredado))
+             else leer_excel(heredado, hoja))
+    }
+  }
+  stop("No existe el derivado '", nombre, "' en ", RUTAS$derived, "\n",
+       "  Genérelo con:  Rscript 02_Code/run_all.R", call. = FALSE)
+}
+
+#' TRUE si el derivado está disponible (en parquet o en un formato heredado).
+existe_derivado <- function(nombre) {
+  nombre <- sub("\\.(parquet|dta|xlsx)$", "", nombre)
+  any(file.exists(derivado(paste0(nombre, c(".parquet", ".dta", ".xlsx")))))
+}
+
+#' Escribe un derivado del pipeline en Parquet.
+#'
+#' @param datos data.frame.
+#' @param nombre nombre sin extensión.
+#' @param comprimir códec; zstd da el mejor equilibrio tamaño/velocidad.
+escribir_derivado <- function(datos, nombre, comprimir = "zstd") {
+  nombre <- sub("\\.(parquet|dta|xlsx)$", "", nombre)
+  ruta <- derivado(paste0(nombre, ".parquet"))
+  d <- as.data.frame(datos)
+  # Parquet no admite las columnas etiquetadas de haven; se guardan como su
+  # tipo base y la etiqueta se pierde (nadie del pipeline la usa).
+  d[] <- lapply(d, function(x) if (inherits(x, "haven_labelled")) as.vector(x) else x)
+  arrow::write_parquet(d, ruta, compression = comprimir)
+  message("  [derivado] ", basename(ruta), "  (", nrow(d), " x ", ncol(d), ", ",
+          format(structure(file.size(ruta), class = "object_size"), units = "auto"), ")")
+  invisible(ruta)
 }
 
 # --- Lectura de insumos -------------------------------------------------------

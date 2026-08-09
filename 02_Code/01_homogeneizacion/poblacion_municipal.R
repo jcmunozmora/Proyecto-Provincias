@@ -267,9 +267,8 @@ poblacion_municipal <- datos_general |>
   dplyr::arrange(.data$ind_mpio) |>
   dplyr::mutate(ind_mpio = a_numero(.data$ind_mpio))
 
-haven::write_dta(poblacion_total_2025, derivado("poblacion_total_2025.dta"))
-haven::write_dta(poblacion_municipal,
-                 derivado("poblacion_municipal_total_2025.dta"))
+escribir_derivado(poblacion_total_2025, "poblacion_total_2025")
+escribir_derivado(poblacion_municipal, "poblacion_municipal_total_2025")
 
 message("  poblacion_total_2025.dta: ", nrow(poblacion_total_2025),
         " filas (", dplyr::n_distinct(poblacion_total_2025$ind_mpio),

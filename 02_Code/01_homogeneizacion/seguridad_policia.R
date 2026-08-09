@@ -155,12 +155,18 @@ if (length(unique(n_filas)) != 1) {
 }
 
 # --- Guardar ------------------------------------------------------------------
-archivo <- derivado("seguridad_policia.xlsx")
-unlink(archivo)   # se reescriben las ocho hojas; no debe quedar nada anterior
+# Antes eran ocho hojas de un .xlsx, una por delito y año. Como todas tienen la
+# misma estructura, en parquet van como una sola tabla larga con las columnas
+# `delito` y `anio`: es el mismo dato, pero filtrable y sin repetir esquema.
+largo <- purrr::imap_dfr(tablas, function(tabla, nombre) {
+  partes <- regmatches(nombre, regexec("^(.*)_(\\d{4})$", nombre))[[1]]
+  tabla$delito <- partes[2]
+  tabla$anio   <- as.integer(partes[3])
+  tabla
+})
+largo <- dplyr::relocate(largo, "delito", "anio", .after = 1)
 
-for (nombre in names(tablas)) {
-  escribir_hoja(tablas[[nombre]], archivo, nombre)
-}
-
-message("  seguridad_policia.xlsx: ", length(tablas), " hojas × ", n_filas[[1]],
+escribir_derivado(largo, "seguridad_policia")
+message("  seguridad_policia: ", dplyr::n_distinct(largo$delito), " delitos × ",
+        dplyr::n_distinct(largo$anio), " años × ", n_filas[[1]],
         " municipios de Antioquia")

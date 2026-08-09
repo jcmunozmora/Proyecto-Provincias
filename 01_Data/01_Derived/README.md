@@ -1,89 +1,91 @@
 # 01_Derived — Datos derivados
 
-Resultados intermedios del pipeline. **Todo lo que está aquí debería poder
-borrarse y regenerarse** corriendo el pipeline… salvo las excepciones que se
-listan más abajo, que son el principal hueco de reproducibilidad del proyecto.
+Resultados intermedios del pipeline, **todos en Parquet**. Se pueden borrar
+enteros y regenerar con:
 
-No edite estos archivos a mano: el pipeline los sobrescribe.
+```bash
+Rscript 02_Code/run_all.R
+```
 
----
+No edite estos archivos a mano: el pipeline los sobrescribe. Si un dato hay que
+corregirlo a mano, no pertenece aquí sino a `01_Data/00_Inputs/curados/`.
 
-## Con productor en el repositorio (se regeneran solos)
+## Por qué Parquet
 
-Todos salen de un script de `02_Code/01_homogeneizacion/`, salvo donde se
-indique otra cosa. El pipeline los regenera con `Rscript 02_Code/run_all.R`.
+Antes esta carpeta mezclaba `.dta` y `.xlsx`, y 17 archivos existían en los dos
+formatos a la vez. Un solo formato, columnar y comprimido, resolvió tres cosas:
+
+| | antes | ahora |
+|---|---|---|
+| Peso | 115 MB | **20 MB** |
+| Formatos | `.dta` + `.xlsx` mezclados y duplicados | solo `.parquet` |
+| Tipos de dato | se perdían al pasar por Excel | se conservan |
+
+Parquet además se lee igual desde R, Python y Stata 18+, así que el formato no
+ata el proyecto a una herramienta.
+
+## Cómo se leen y se escriben
+
+En el código **no se abren estos archivos directamente**: hay dos funciones que
+esconden el formato, de modo que cambiarlo mañana no obligue a tocar 30 scripts.
+
+```r
+d <- leer_derivado("codigos_provincias")      # sin extensión
+escribir_derivado(d, "codigos_provincias")    # escribe .parquet
+existe_derivado("percepcion_seguridad")       # TRUE / FALSE
+```
+
+`leer_derivado()` lee el parquet; si solo encontrara un `.dta` o `.xlsx`
+heredado, lo lee igualmente y avisa, para que una conversión a medias no rompa
+el pipeline.
+
+Desde fuera de R:
+
+```python
+import pandas as pd
+pd.read_parquet("01_Data/01_Derived/codigos_provincias.parquet")
+```
+
+## Qué hay aquí
 
 | Archivo | Lo produce |
 |---|---|
-| `codigos_provincias.dta`, `subreg_completo.dta` | `crosswalk_territorial.R` |
-| `ECV_nbi_pobreza.dta`, `ECV_raw.dta` | `ecv.R` |
-| `ECV_oficial_agregados.dta` | `ecv_oficial_agregados.R` |
-| `estructura_productiva.{dta,xlsx}`, `imca_2022.{dta,xlsx}` | `deyc.R` |
-| `20250506 EDUCACION.xlsx` | `educacion.R` |
-| `20260504_SEGURIDAD_SALUD_DEFICT_VIVIENDA.*` | `salud_seguridad.R` (parcial, ver abajo) |
-| `infraestructura_internet_2025.dta` | `infraestructura_internet.R` |
-| `seguridad_policia.xlsx` | `seguridad_policia.R` |
-| `poblacion_total_2025.dta`, `poblacion_municipal_total_2025.dta` | `poblacion_municipal.R` |
-| `uso_del_suelo_pota.xlsx` | `uso_suelo.R` |
-| `percepcion_seguridad.{dta,xlsx}` | `percepcion_seguridad.R` |
-| `01_final_data*.dta`, `01_DATOS_INICIALES*.xlsx`, `label.xlsx` | pipeline anterior (consolidación, sin migrar) |
+| `codigos_provincias`, `subreg_completo` | `crosswalk_territorial.R` |
+| `ECV_nbi_pobreza`, `ECV_raw` | `ecv.R` |
+| `ECV_oficial_agregados` | `ecv_oficial_agregados.R` |
+| `estructura_productiva`, `imca_2022` | `deyc.R` |
+| `20250506 EDUCACION` | `educacion.R` |
+| `20260504_SEGURIDAD_SALUD_DEFICT_VIVIENDA` | `salud_seguridad.R` |
+| `infraestructura_internet_2025` | `infraestructura_internet.R` |
+| `seguridad_policia` | `seguridad_policia.R` |
+| `poblacion_total_2025`, `poblacion_municipal_total_2025` | `poblacion_municipal.R` |
+| `percepcion_seguridad` | `percepcion_seguridad.R` |
+| `uso_del_suelo_pota` | `uso_suelo.R` |
 
-`ECV_raw.dta` no se versiona (38 MB): lo regenera `ecv.R`.
+Todos tienen productor: **si un archivo aparece aquí sin script que lo genere,
+está en el lugar equivocado.** Lo que se arma a mano va a
+[`01_Data/00_Inputs/curados/`](../00_Inputs/curados/).
 
-## Sin productor en el repositorio ⚠️
+`maps/` guarda la cartografía derivada (shapefiles), que no es tabular y por eso
+no va en parquet.
 
-Estos archivos **se construyen a mano en Excel** y nadie los regenera. Si se
-pierden o quedan desactualizados, no hay forma de reconstruirlos desde el
-código: hay que rehacerlos a mano. Es el hueco de reproducibilidad más grande
-del proyecto y conviene irlos migrando a scripts.
+## Un cambio de estructura que conviene conocer
 
-Familia `*_PROVINCIAS.xlsx` (agregados provinciales preparados a mano):
+`seguridad_policia` era un Excel de **ocho hojas**, una por delito y año. Como
+todas tenían la misma estructura, ahora es **una sola tabla larga** con las
+columnas `delito` y `anio`. Es el mismo dato, filtrable y sin repetir el esquema
+ocho veces:
 
-`617_PROVINCIAS` · `AREAPROTEGIDA_PROVINCIAS` · `AREA_PROVINCIAS` ·
-`CULTILICITOS_PROVINCIAS` · `CULTIVOS_PROVINCIAS` · `EDUCACION_PROVINCIAS` ·
-`EMERGENCIAS_PROVINCIAS` · `EVOA_PROVINCIAS` · `EXTRANJEROS_PROVINCIAS` ·
-`HECHOSVICTIM_PROVINCIAS` · `ICM_PROVINCIAS` · `IDF_PROVINCIAS` ·
-`IMRC_PROVINCIAS` · `IRCA_PROVINCIAS` · `MDM_PROVINCIAS` ·
-`PECUARIO_PROVINCIAS` · `SRDAFT_PROVINCIAS`
+```r
+policia <- leer_derivado("seguridad_policia")
+subset(policia, delito == "homicidios" & anio == 2025)
+```
 
-Otros sin productor:
+## Nombres heredados
 
-`ESTADO_CATASTRO.xlsx` · `VALOR_AGREGADO_20152024_MUNICIPIOS.xlsx` ·
-`indice_gobierno_digital_2024.dta`
+Dos archivos conservan un nombre que induce a error, porque cambiarlo obligaría
+a tocar a todos sus lectores:
 
-**`20260504_SEGURIDAD_SALUD_DEFICT_VIVIENDA.*`** merece explicación aparte.
-Parece un derivado y está en esta carpeta, pero **en realidad es un insumo
-curado**: de sus 36 columnas, el pipeline calcula tres (tasa de natalidad, de
-mortalidad y crecimiento vegetativo) y las otras 33 se armaron a mano en Excel
-sin fuente en el repositorio. El script de Stata leía este archivo y lo
-reescribía encima, de modo que cada corrida acumulaba transformaciones sobre su
-propio resultado; el script en R descarta al leer las tres columnas que él mismo
-produce, así que toda corrida parte del mismo tablero. Lo correcto sería moverlo
-a `00_Inputs`, pero eso obliga a actualizar a sus tres lectores. El nombre trae
-el error de escritura "DEFICT": es el archivo vigente, no lo renombre sin
-actualizar a quienes lo leen.
-
-Los `*_dicc` (`IRCA_dicc`, `natalidad_dicc`, `mortalidad_iam_dicc`,
-`i_datalake_ges_pub_dicc`, `infraestructura_municipios_dicc`,
-`poblacion_municipal_total_2023_dicc`, `suicidios_e_intentos_medias_dicc`)
-vienen de scripts R que corrieron **fuera** del repositorio, sobre insumos que
-tampoco están aquí; su código está en `02_Code/01_homogeneizacion/externos/`.
-Al `.csv`/`.xlsx` que producían se le añadió a mano una hoja `Data`, y esa
-versión con sufijo `_dicc` es la que consume el pipeline.
-
----
-
-## Nombres que confunden (y por qué siguen así)
-
-- **Prefijos de fecha que no son la fecha del archivo.** `20250505_…` y
-  `20250506_…` se refieren a la entrega original de mayo de 2025; algunos se
-  actualizaron después conservando el nombre. `20260504_…` es la revisión de
-  2026 y es la vigente para seguridad, salud y déficit de vivienda.
-- **Mismo nombre con espacio y con guion bajo, y no son lo mismo.**
-  `20250506 EDUCACION.xlsx` (con espacio) lo produce la homogeneización y lo
-  consume la sección de ordenamiento; `20250506_EDUCACION.{dta,xlsx}` (con guion
-  bajo) es la versión de abril y la consume la consolidación. Igual con `DEyC`.
-  Antes de tocar cualquiera de los dos, verifique con `grep` quién lo lee.
-
-Las versiones obsoletas de estos pares y los archivos huérfanos se movieron a
-`99_Legacy/datos/`; allí está explicado qué era cada uno.
+- **`20250506 EDUCACION`** — la fecha es de la entrega original de mayo de 2025;
+  el contenido se ha actualizado desde entonces. Lleva un espacio en el nombre.
+- **`20260504_SEGURIDAD_SALUD_DEFICT_VIVIENDA`** — dice "DEFICT" por "DÉFICIT".

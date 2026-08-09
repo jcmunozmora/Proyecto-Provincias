@@ -166,7 +166,7 @@ ETIQUETAS_TERRITORIO <- c(
 # --- Hoja 1: bajo peso al nacer ----------------------------------------------
 
 .hoja_bajo_peso <- function(prov, archivo, nacimientos) {
-  salud <- haven::read_dta(derivado("20260504_SEGURIDAD_SALUD_DEFICT_VIVIENDA.dta"))
+  salud <- leer_derivado("20260504_SEGURIDAD_SALUD_DEFICT_VIVIENDA")
 
   # El indicador viene en puntos porcentuales; se guarda como proporción.
   universo <- data.frame(
@@ -204,7 +204,7 @@ ETIQUETAS_TERRITORIO <- c(
 # --- Hoja 2: enfermedades transmitidas por vectores --------------------------
 
 .hoja_enfermedades_tropicales <- function(prov, archivo, pesos) {
-  salud <- haven::read_dta(derivado("20260504_SEGURIDAD_SALUD_DEFICT_VIVIENDA.dta"))
+  salud <- leer_derivado("20260504_SEGURIDAD_SALUD_DEFICT_VIVIENDA")
   columnas <- c("dengue", "malaria", "leishmaniasis")
 
   # El .do calcula SOLO el agregado provincial en esta hoja (sin subregión ni
@@ -250,7 +250,7 @@ ETIQUETAS_TERRITORIO <- c(
 
 .hoja_suicidios <- function(prov, archivo, pesos) {
   # El derivado trae todo como texto: hay que forzar la conversión.
-  su <- haven::read_dta(derivado("suicidios_e_intentos_medias_dicc.dta"))
+  su <- haven::read_dta(entrada("curados", "suicidios_e_intentos_medias_dicc.dta"))
   columnas <- c("tis_total", "ts_total")
 
   universo <- data.frame(

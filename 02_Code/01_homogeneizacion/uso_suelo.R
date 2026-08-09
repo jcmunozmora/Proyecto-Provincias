@@ -232,12 +232,10 @@ if (nrow(resultado) == 0) {
 }
 
 # --- Guardar ------------------------------------------------------------------
-archivo <- derivado("uso_del_suelo_pota.xlsx")
-unlink(archivo)
-escribir_hoja(resultado, archivo, "Sheet1")
+escribir_derivado(resultado, "uso_del_suelo_pota")
 
 fuera_de_rango <- sum(abs(resultado$chk_pct_sum - 100) > 1, na.rm = TRUE)
-message("  uso_del_suelo_pota.xlsx: ", nrow(resultado), " municipios (",
+message("  uso_del_suelo_pota: ", nrow(resultado), " municipios (",
         sum(resultado$tiene_urbano == 1), " con hoja URBANO)")
 if (fuera_de_rango > 0) {
   message("  [aviso] ", fuera_de_rango,

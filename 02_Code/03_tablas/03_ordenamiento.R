@@ -201,7 +201,7 @@ if (!exists("RUTAS")) stop("Cargue 02_Code/R/00_config.R antes de este script.",
 .hoja_servicios_publicos <- function(prov, archivo) {
   svars <- names(.SERVICIOS)
 
-  ecv <- haven::read_dta(derivado("ECV_nbi_pobreza.dta")) |>
+  ecv <- leer_derivado("ECV_nbi_pobreza") |>
     dplyr::select("ind_mpio", dplyr::all_of(svars)) |>
     dplyr::mutate(
       ind_mpio = as.integer(.data$ind_mpio),
@@ -225,7 +225,7 @@ if (!exists("RUTAS")) stop("Cargue 02_Code/R/00_config.R antes de este script.",
   ) |>
     dplyr::filter(.data$tipo_fila == "Total provincia")
 
-  oficial <- haven::read_dta(derivado("ECV_oficial_agregados.dta"))
+  oficial <- leer_derivado("ECV_oficial_agregados")
   fila_oficial <- function(nivel, clave, etiqueta, tipo) {
     d <- dplyr::filter(oficial, .data$nivel == !!nivel, .data$key == !!clave)
     if (nrow(d) == 0) return(NULL)
@@ -296,7 +296,7 @@ if (!exists("RUTAS")) stop("Cargue 02_Code/R/00_config.R antes de este script.",
                      area_km2 = a_numero(.data[[c_area]])) |>
     dplyr::filter(!is.na(.data$ind_mpio))
 
-  vias <- haven::read_dta(derivado("infraestructura_municipios_dicc.dta"))
+  vias <- haven::read_dta(entrada("curados", "infraestructura_municipios_dicc.dta"))
   # El derivado trae TODAS las columnas como texto, incluido el código DANE.
   vias |>
     dplyr::transmute(
@@ -362,7 +362,7 @@ if (!exists("RUTAS")) stop("Cargue 02_Code/R/00_config.R antes de este script.",
     stats::setNames(d[, posiciones, drop = FALSE], nombres)
   }
 
-  estado <- por_posicion(derivado("ESTADO_CATASTRO.xlsx"), "Catastro_Full",
+  estado <- por_posicion(entrada("curados", "ESTADO_CATASTRO.xlsx"), "Catastro_Full",
                          c(2, 4, 6),
                          c("ind_mpio", "estado_catastro_rural", "estado_catastro_urbano")) |>
     dplyr::mutate(ind_mpio = as.integer(a_numero(.data$ind_mpio))) |>
@@ -447,7 +447,7 @@ if (!exists("RUTAS")) stop("Cargue 02_Code/R/00_config.R antes de este script.",
 
 .hoja_imca <- function(prov, archivo) {
   columnas <- names(.IMCA)
-  crudo <- haven::read_dta(derivado("imca_2022.dta"))
+  crudo <- leer_derivado("imca_2022")
 
   oficial_subregion <- crudo |>
     dplyr::filter(.data$ind_mpio %in% names(.SUBREGION_SR)) |>
@@ -523,7 +523,7 @@ if (!exists("RUTAS")) stop("Cargue 02_Code/R/00_config.R antes de este script.",
 
   # El insumo trae su propia columna `municipio`; se descarta para que no choque
   # con el nombre de presentación del crosswalk.
-  universo <- haven::read_dta(derivado("indice_gobierno_digital_2024.dta")) |>
+  universo <- haven::read_dta(entrada("curados", "indice_gobierno_digital_2024.dta")) |>
     dplyr::transmute(ind_mpio = as.integer(.data$ind_mpio),
                      dplyr::across(dplyr::all_of(columnas), as.numeric)) |>
     dplyr::left_join(.poblacion_peso(2024), by = "ind_mpio") |>
@@ -583,7 +583,7 @@ if (!exists("RUTAS")) stop("Cargue 02_Code/R/00_config.R antes de este script.",
 # SIMPLE: es una tasa de una cohorte pequeña y el .do no la pondera.
 
 .hoja_tti_edsup <- function(prov, archivo) {
-  d <- leer_excel(derivado("20250506 EDUCACION.xlsx"))
+  d <- leer_derivado("20250506 EDUCACION")
   c_cod <- col_req(d, "ind_mpio")
   c_tti <- col_req(d, "tti_edsup")
 
@@ -623,7 +623,7 @@ if (!exists("RUTAS")) stop("Cargue 02_Code/R/00_config.R antes de este script.",
 # para los conteos: así lo define el .do y así se publicó el informe.
 
 .hoja_internet <- function(prov, archivo) {
-  crudo <- haven::read_dta(derivado("infraestructura_internet_2025.dta")) |>
+  crudo <- leer_derivado("infraestructura_internet_2025") |>
     dplyr::filter(.data$servicio_paquete == "Internet fijo",
                   .data$estado == "Activo en funcionamiento") |>
     dplyr::mutate(
@@ -641,7 +641,7 @@ if (!exists("RUTAS")) stop("Cargue 02_Code/R/00_config.R antes de este script.",
     ) |>
     dplyr::mutate(prop_fibra = .data$lineas_fibra / .data$lineas_totales)
 
-  poblacion <- haven::read_dta(derivado("poblacion_total_2025.dta")) |>
+  poblacion <- leer_derivado("poblacion_total_2025") |>
     dplyr::filter(.data$area_geo == "Total") |>
     dplyr::transmute(ind_mpio = as.integer(.data$ind_mpio),
                      poblacion = as.numeric(.data$Total))
@@ -687,7 +687,7 @@ if (!exists("RUTAS")) stop("Cargue 02_Code/R/00_config.R antes de este script.",
 # información — no un cero.
 
 .hoja_uso_suelo <- function(prov, archivo) {
-  pota <- leer_excel(derivado("uso_del_suelo_pota.xlsx"), hoja = "Sheet1")
+  pota <- leer_derivado("uso_del_suelo_pota")
   c_cod <- col_req(pota, "codmpio", "ind_mpio")
   c_uso <- col_req(pota, "pct_uso_adecuado_rural")
 

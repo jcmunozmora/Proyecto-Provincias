@@ -82,7 +82,7 @@ if (!exists("RUTAS")) stop("Cargue 02_Code/R/00_config.R antes de este script.",
 
 #' Áreas protegidas de todo el departamento: una fila por (municipio, área).
 .areas_protegidas <- function() {
-  d <- leer_excel(derivado("AREAPROTEGIDA_PROVINCIAS.xlsx"), hoja = "Hoja1")
+  d <- leer_excel(entrada("curados", "AREAPROTEGIDA_PROVINCIAS.xlsx"), hoja = "Hoja1")
   c_cod  <- col_req(d, "COD_MPIO", "ind_mpio")
   c_nom  <- col_req(d, "Nombre Area Protegida", "NombreAreaProtegida")
   c_cat  <- col_req(d, "categori_1", "Categoría")
@@ -101,7 +101,7 @@ if (!exists("RUTAS")) stop("Cargue 02_Code/R/00_config.R antes de este script.",
 
 #' IRCA de todos los municipios y todos los años disponibles.
 .irca <- function() {
-  d <- leer_excel(derivado("IRCA_PROVINCIAS.xlsx"), hoja = "Data")
+  d <- leer_excel(entrada("curados", "IRCA_PROVINCIAS.xlsx"), hoja = "Data")
   c_cod <- col_req(d, "MunicipioCodigo", "DIVIPOLA", "ind_mpio")
   c_ano <- col_req(d, "Año", "Anio")
   c_it  <- col_req(d, "IRCA")
@@ -129,7 +129,7 @@ if (!exists("RUTAS")) stop("Cargue 02_Code/R/00_config.R antes de este script.",
 #' Emergencias registradas por la UNGRD: una fila por evento, con municipio,
 #' tipo de evento y año.
 .emergencias <- function() {
-  d <- leer_excel(derivado("EMERGENCIAS_PROVINCIAS.xlsx"), hoja = "Data")
+  d <- leer_excel(entrada("curados", "EMERGENCIAS_PROVINCIAS.xlsx"), hoja = "Data")
   c_cod <- col_req(d, "CODIFICACIÓN SEGUN DIVIPOLA",
                    "CODIFICACIÓN SEGUN DIVIPOLA DEPART", "ind_mpio")
   c_ev  <- col_req(d, "EVENTO")
@@ -150,7 +150,7 @@ if (!exists("RUTAS")) stop("Cargue 02_Code/R/00_config.R antes de este script.",
 #' se identifican por posición entre las columnas que no son territoriales,
 #' igual que en el .do.
 .imrc <- function() {
-  d <- leer_excel(derivado("IMRC_PROVINCIAS.xlsx"), hoja = "IMRC")
+  d <- leer_excel(entrada("curados", "IMRC_PROVINCIAS.xlsx"), hoja = "IMRC")
   c_cod <- col_req(d, "DIVIPOLA", "ind_mpio")
   territoriales <- c(c_cod, col(d, "Municipio"), col(d, "subreg"), col(d, "prov"))
   indices <- setdiff(names(d), stats::na.omit(territoriales))

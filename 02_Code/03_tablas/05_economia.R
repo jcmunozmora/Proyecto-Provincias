@@ -117,7 +117,7 @@ ETIQUETAS_TERRITORIO <- c(
 #' Serie de visitantes extranjeros de TODOS los municipios de Antioquia.
 .extranjeros_universo <- function() {
   if (is.null(.cache_eco$extranjeros)) {
-    x <- leer_excel(derivado("EXTRANJEROS_PROVINCIAS.xlsx"), hoja = "Extranjeros")
+    x <- leer_excel(entrada("curados", "EXTRANJEROS_PROVINCIAS.xlsx"), hoja = "Extranjeros")
     c_cod  <- col_req(x, "CODIGO_MUN")
     c_anio <- col_req(x, "Año", "ANO")
     c_ext  <- col_req(x, "Cant Extranjeros no Residentes",
@@ -188,7 +188,7 @@ ETIQUETAS_TERRITORIO <- c(
 #' Municipios de la provincia con los indicadores ECV y el peso poblacional.
 .ecv_municipios <- function(prov) {
   if (is.null(.cache_eco$ecv)) {
-    e <- haven::read_dta(derivado("ECV_nbi_pobreza.dta"))
+    e <- leer_derivado("ECV_nbi_pobreza")
     e$ind_mpio <- as.integer(e$ind_mpio)
     .cache_eco$ecv <- con_territorio(as.data.frame(e))
   }
@@ -200,7 +200,7 @@ ETIQUETAS_TERRITORIO <- c(
 .ecv_oficial <- function(nivel, clave) {
   if (is.null(.cache_eco$ecv_ofi)) {
     .cache_eco$ecv_ofi <- as.data.frame(
-      haven::read_dta(derivado("ECV_oficial_agregados.dta"))
+      leer_derivado("ECV_oficial_agregados")
     )
   }
   d <- .cache_eco$ecv_ofi
@@ -546,7 +546,7 @@ RAMAS_VA <- c(
 
 .valor_agregado <- function(prov) {
   bruto <- .leer_por_posicion(
-    derivado("VALOR_AGREGADO_20152024_MUNICIPIOS.xlsx"),
+    entrada("curados", "VALOR_AGREGADO_20152024_MUNICIPIOS.xlsx"),
     "PIB Mpal 2015-2024 Cons", saltar = 3
   )
 

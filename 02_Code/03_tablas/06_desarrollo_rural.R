@@ -111,7 +111,7 @@ ESPECIES_PECUARIAS <- c(
 #' Inventario pecuario de TODOS los municipios de Antioquia (125), por año.
 #' Una especie sin registro en un municipio-año queda en 0, como en el .do.
 .universo_pecuario <- function() {
-  ruta <- derivado("PECUARIO_PROVINCIAS.xlsx")
+  ruta <- entrada("curados", "PECUARIO_PROVINCIAS.xlsx")
   partes <- list(
     .hoja_pecuaria(ruta, "InvBovino",   "Total bovinos",  "bovinos"),
     .hoja_pecuaria(ruta, "InvBufalino", "Total búfalos",  "bufalos"),
@@ -135,7 +135,7 @@ ESPECIES_PECUARIAS <- c(
 
 #' Base de cultivos (UPRA/EVA) de los municipios de una provincia.
 .base_cultivos <- function(prov) {
-  d <- leer_excel(derivado("CULTIVOS_PROVINCIAS.xlsx"), hoja = "BasePagina")
+  d <- leer_excel(entrada("curados", "CULTIVOS_PROVINCIAS.xlsx"), hoja = "BasePagina")
 
   c_cod <- col_req(d, "Código Dane municipio", "cod_mun")
   c_cul <- col_req(d, "Cultivo")

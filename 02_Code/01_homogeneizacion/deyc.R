@@ -97,22 +97,16 @@ largo_base <- datalake |>
   ancho
 }
 
-#' Formato de visualización de Stata (`format var %4.1f`). No altera los valores;
-#' solo viaja en el .dta para que la tabla se vea igual al abrirla en Stata.
-.formato_stata <- function(datos, columnas, formato) {
-  for (cl in columnas) attr(datos[[cl]], "format.stata") <- formato
-  datos
+#' Guarda el derivado. Antes se escribía en .dta y .xlsx a la vez; ahora es un
+#' único parquet (el formato de todos los derivados del pipeline).
+.guardar <- function(datos, nombre) {
+  escribir_derivado(datos, nombre)
 }
 
-#' Guarda el derivado en .dta y .xlsx. El .xlsx se rehace desde cero (Stata usaba
-#' `replace`), así que se borra antes para no arrastrar hojas viejas.
-.guardar <- function(datos, nombre) {
-  haven::write_dta(datos, derivado(paste0(nombre, ".dta")))
-  xlsx <- derivado(paste0(nombre, ".xlsx"))
-  if (file.exists(xlsx)) unlink(xlsx)
-  escribir_hoja(datos, xlsx, "Sheet1")
-  message("  ", nombre, ": ", nrow(datos), " filas x ", ncol(datos), " columnas")
-}
+#' Los formatos de visualización de Stata (`format var %4.1f`) no viajan en
+#' parquet y no los usa nadie: la función se conserva como identidad para no
+#' alterar el resto del script.
+.sin_formato_stata <- function(datos, columnas, formato) datos
 
 # =============================================================================
 # 1. Estructura productiva — indicadores priorizados, año más reciente
@@ -137,7 +131,7 @@ estructura_productiva <- largo_base |>
   dplyr::filter(.data$anno == max(.data$anno)) |>
   dplyr::ungroup() |>
   .a_formato_ancho() |>
-  .formato_stata(unname(INDICADORES_ESTRUCTURA), "%4.1f")
+  .sin_formato_stata(unname(INDICADORES_ESTRUCTURA), "%4.1f")
 
 .guardar(estructura_productiva, "estructura_productiva")
 
@@ -164,7 +158,7 @@ imca_2022 <- largo_base |>
   dplyr::filter(.data$anno == 2022) |>
   .seleccionar_indicadores(INDICADORES_IMCA) |>
   .a_formato_ancho() |>
-  .formato_stata(unname(INDICADORES_IMCA), "%4.2f")
+  .sin_formato_stata(unname(INDICADORES_IMCA), "%4.2f")
 
 # El .do conserva `Año` (constante en 2022) como última columna del derivado.
 imca_2022[["Año"]] <- 2022

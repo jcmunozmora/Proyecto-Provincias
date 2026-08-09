@@ -87,11 +87,10 @@ names(columnas) <- names(ETIQUETAS)
 encuesta <- as.data.frame(columnas, stringsAsFactors = FALSE)
 
 # --- Guardar ------------------------------------------------------------------
-archivo_xlsx <- derivado("percepcion_seguridad.xlsx")
+
 unlink(archivo_xlsx)
 
-haven::write_dta(encuesta, derivado("percepcion_seguridad.dta"))
-escribir_hoja(encuesta, archivo_xlsx, "Sheet1")
+escribir_derivado(encuesta, "percepcion_seguridad")
 
 message("  percepcion_seguridad: ", nrow(encuesta), " entrevistas, ",
         dplyr::n_distinct(encuesta$B_SUBREGION), " subregiones")

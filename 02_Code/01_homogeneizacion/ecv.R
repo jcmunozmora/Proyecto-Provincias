@@ -90,7 +90,7 @@ for (cl in names(crudo)) {
   if (!is.null(et) && nzchar(et)) attr(crudo[[cl]], "label") <- et
 }
 
-haven::write_dta(crudo, derivado("ECV_raw.dta"))
+escribir_derivado(crudo, "ECV_raw")
 message("  ECV_raw.dta: ", nrow(crudo), " filas x ", ncol(crudo), " columnas")
 
 # --- Indicadores priorizados: nombre largo -> nombre corto --------------------
@@ -229,6 +229,6 @@ stopifnot(
   "faltan columnas de indicadores" = ncol(ancho) == 2L + 3L * length(indicadores)
 )
 
-haven::write_dta(ancho, derivado("ECV_nbi_pobreza.dta"))
+escribir_derivado(ancho, "ECV_nbi_pobreza")
 message("  ECV_nbi_pobreza.dta: ", nrow(ancho), " municipios x ",
         length(indicadores), " indicadores (tot/urb/rur)")

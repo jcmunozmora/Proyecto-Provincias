@@ -25,13 +25,17 @@ Cómo está organizado el pipeline y cómo trabajar sobre él.
    archivo con lógica de rutas. En cualquier otro script se usan `entrada()`,
    `derivado()` y `salida()`. Nunca una ruta absoluta ni un `setwd()`.
 2. **`01_Data/00_Inputs` es de solo lectura.** Todo lo que produce el pipeline
-   va a `01_Derived` o a `03_Outputs`.
-3. **Los colores y tamaños no se eligen por figura.** Salen de `R/02_tema.R`,
+   va a `01_Derived` o a `03_Outputs`. Y al revés: si un archivo de `01_Derived`
+   no lo genera ningún script, no pertenece ahí sino a `00_Inputs/curados/`.
+3. **Los derivados son Parquet, y se leen con `leer_derivado("nombre")`**, nunca
+   abriendo el archivo directamente. Así cambiar de formato no obliga a tocar
+   todos los scripts.
+4. **Los colores y tamaños no se eligen por figura.** Salen de `R/02_tema.R`,
    que implementa `04_figuras/DISENO.md`. Si algo no encaja, se discute el
    manual; no se inventa un color en la figura.
-4. **Cada figura deja sus datos en el `.xlsx` de la sección**
+5. **Cada figura deja sus datos en el `.xlsx` de la sección**
    (`escribir_datos_figura()`), para que la cifra publicada sea rastreable.
-5. **Nada de rutas nuevas con tildes o espacios** en archivos que cree el
+6. **Nada de rutas nuevas con tildes o espacios** en archivos que cree el
    pipeline. Los insumos históricos las tienen y se respetan; lo nuevo, no.
 
 ## Añadir una sección
@@ -52,7 +56,8 @@ tiene el patrón completo.
 
 | Necesidad | Función |
 |---|---|
-| Ruta de un insumo / derivado / salida | `entrada()`, `derivado()`, `salida()` |
+| Ruta de un insumo / salida | `entrada()`, `salida()` |
+| Leer o escribir un derivado (Parquet) | `leer_derivado()`, `escribir_derivado()`, `existe_derivado()` |
 | Encontrar una columna pese a tildes, espacios o mayúsculas | `col()`, `col_req()` |
 | Convertir texto con separadores locales a número | `a_numero()` |
 | Añadir provincia y subregión por código DANE | `con_territorio()` |

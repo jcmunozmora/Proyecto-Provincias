@@ -43,7 +43,7 @@ tabla_educacion <- function(prov) {
   if (file.exists(archivo)) unlink(archivo)
 
   # --- Indicadores educativos de todo el departamento -----------------------
-  bruto <- leer_excel(derivado("EDUCACION_PROVINCIAS.xlsx"), hoja = "Data")
+  bruto <- leer_excel(entrada("curados", "EDUCACION_PROVINCIAS.xlsx"), hoja = "Data")
 
   c_anio <- col_req(bruto, "AÑO", "ANO", "Año")
   c_cod  <- col_req(bruto, "CÓDIGO_MUNICIPIO", "CODIGO_MUNICIPIO", "ind_mpio")

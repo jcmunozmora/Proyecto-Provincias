@@ -155,7 +155,7 @@ dir_figuras <- function(prov, seccion) {
 # --- 4. Dependencias ----------------------------------------------------------
 PAQUETES <- c(
   "dplyr", "tidyr", "purrr", "stringr", "stringi", "rlang",  # manipulación
-  "readxl", "openxlsx2", "haven",                            # entrada/salida
+  "readxl", "openxlsx2", "haven", "arrow",                   # entrada/salida
   "ggplot2", "scales", "ragg", "systemfonts"                 # figuras
 )
 
