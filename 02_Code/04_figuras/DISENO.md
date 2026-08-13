@@ -208,6 +208,35 @@ aporta su propio espacio).
   ordenadas. Excepción única: composición binaria (dos categorías) donde la
   proporción es el mensaje. Si el catálogo pide torta, se sustituye y se anota.
 
+### Mapas
+
+Implementados en [`02_Code/R/03_mapas.R`](../R/03_mapas.R) y generados por
+[`00_mapas.R`](00_mapas.R).
+
+**Cuándo un mapa gana a una barra.** La barra ordena, el mapa localiza. Solo se
+usa mapa cuando la pregunta es **dónde**: contigüidad (los municipios con déficit
+alto, ¿son vecinos?), frontera (¿el patrón se corta en el límite provincial?),
+accesibilidad (¿los peores están lejos del corredor vial?). Si la lectura es
+«quién tiene más», la barra es mejor y el mapa es decoración cara.
+
+- **Magnitud:** rampa secuencial del Azul Zafre (§2.2). Nunca categórica.
+- **Sin dato:** gris `#E8E8E6`, y la leyenda lo declara. No es un cero (§7).
+- **Sin ejes ni retícula.** `coord_sf(datum = NA)`: en un mapa temático el lector
+  no localiza por coordenada, y los números del eje compiten con el dato.
+- **Etiquetas** de municipio separadas con `ggrepel` y halo del color de la
+  superficie, para que el nombre se lea sobre cualquier tono de la rampa.
+- **Máximo 3 series categóricas** (§2.1). Once provincias no se distinguen por
+  color: se distinguen por su límite.
+- **Cartografía base:** DANE, Marco Geoestadístico Nacional
+  (`01_Data/00_Inputs/maps/MGN_MPIO_POLITICO.shp`), cruzada por código DIVIPOLA.
+- **Tamaño:** 16 × 11 cm. El texto se ajusta a 12,5 cm porque la leyenda
+  vertical ocupa unos 3 cm a la derecha.
+- **Los datos vienen de la tabla ya exportada**, no de los derivados. Un mapa que
+  recalculara podría discrepar de la tabla de su propia sección.
+
+`sf` y `ggrepel` son dependencias **opcionales**: sin ellas el pipeline genera
+todo lo demás y omite los mapas con un aviso.
+
 ---
 
 ## 6. Anatomía de la figura

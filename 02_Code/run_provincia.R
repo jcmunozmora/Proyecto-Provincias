@@ -102,6 +102,24 @@ correr_provincia <- function(id = NULL, secciones = NULL) {
   })
   resumen <- as.data.frame(do.call(rbind, resumen), stringsAsFactors = FALSE)
 
+  # --- Mapas ------------------------------------------------------------------
+  # Van al final y aparte de las secciones: cada mapa lee la tabla .xlsx que la
+  # sección acaba de escribir, así que necesita que todas hayan corrido. Solo
+  # se generan si se pidió la provincia completa.
+  if (identical(lista, SECCIONES)) {
+    source(file.path(RUTAS$codigo, "04_figuras", "00_mapas.R"), encoding = "UTF-8")
+    r_mapas <- tryCatch(mapas_provincia(prov), error = function(e) e)
+    resumen <- rbind(resumen, data.frame(
+      seccion = "Mapas",
+      estado  = if (inherits(r_mapas, "error")) "ERROR"
+                else if (is.null(r_mapas)) "OMITIDO" else "OK",
+      detalle = if (inherits(r_mapas, "error")) conditionMessage(r_mapas)
+                else if (is.null(r_mapas)) "falta el paquete sf"
+                else paste(length(r_mapas), "mapas"),
+      stringsAsFactors = FALSE
+    ))
+  }
+
   message("\n--- Resumen ", prov$etiqueta, " ---")
   for (i in seq_len(nrow(resumen))) {
     message(sprintf("  %-22s %-10s %s", resumen$seccion[i], resumen$estado[i],

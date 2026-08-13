@@ -27,6 +27,12 @@
       "Source": "Repository",
       "Repository": "CRAN"
     },
+    "ggrepel": {
+      "Package": "ggrepel",
+      "Version": "0.9.8",
+      "Source": "Repository",
+      "Repository": "CRAN"
+    },
     "haven": {
       "Package": "haven",
       "Version": "2.5.5",
@@ -78,6 +84,12 @@
     "scales": {
       "Package": "scales",
       "Version": "1.4.0",
+      "Source": "Repository",
+      "Repository": "CRAN"
+    },
+    "sf": {
+      "Package": "sf",
+      "Version": "1.0.20",
       "Source": "Repository",
       "Repository": "CRAN"
     },

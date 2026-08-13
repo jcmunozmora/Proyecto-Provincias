@@ -69,7 +69,11 @@ AUSENTES_CONOCIDAS <- c(
 )
 citados <- character(0)
 for (f in scripts_vigentes()) {
-  txt <- paste(readLines(f, warn = FALSE), collapse = "\n")
+  lineas <- readLines(f, warn = FALSE)
+  # Se ignoran los comentarios, igual que en la comprobación 1: la
+  # documentación de una función cita ejemplos como entrada("a", "b"), y
+  # leerlos como insumos reales produce un error inventado.
+  txt <- paste(lineas[!grepl("^\\s*#", lineas)], collapse = "\n")
   m <- regmatches(txt, gregexpr('entrada\\(\\s*"[^"]+"', txt))[[1]]
   citados <- c(citados, sub('entrada\\(\\s*"', "", m))
 }

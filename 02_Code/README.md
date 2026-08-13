@@ -9,14 +9,18 @@ Cómo está organizado el pipeline y cómo trabajar sobre él.
 ├── R/                  infraestructura compartida
 │   ├── 00_config.R     rutas, tabla de provincias, dependencias
 │   ├── 01_utils.R      crosswalks, agregación, escritura de tablas
-│   └── 02_tema.R       paleta, tema ggplot2, exportación de figuras
+│   ├── 02_tema.R       paleta, tema ggplot2, exportación de figuras
+│   └── 03_mapas.R      cartografía base y geoms de mapa (sf; opcional)
 ├── 01_homogeneizacion/ una fuente cruda → un derivado limpio
 │   └── externos/       scripts heredados que corrían fuera del repositorio
 ├── 03_tablas/          una sección temática → su .xlsx
-├── 04_figuras/         esas tablas → figuras PNG y PDF
+├── 04_figuras/         esas tablas → figuras y mapas PNG y PDF
+│   ├── 00_mapas.R      los 10 mapas de cada provincia
 │   ├── DISENO.md       manual de diseño (léalo antes de tocar una figura)
-│   └── catalogo_figuras.xlsx  las 83 figuras del informe
-└── 99_checks/          verificación
+│   └── catalogo_figuras.xlsx  catálogo heredado (desactualizado: ver §Huecos
+│                              del README raíz)
+├── 05_documento/       esqueletos de redacción por provincia
+└── 99_checks/          verificación y auditoría
 ```
 
 ## Reglas del proyecto
@@ -69,6 +73,10 @@ tiene el patrón completo.
 | Barras horizontales ordenadas con resalte | `fig_barras()` |
 | Título, subtítulo y fuente de una figura | `textos_fig()` |
 | Exportar PNG 300 dpi + PDF vectorial | `guardar_fig()` |
+| Mapa de magnitud de una provincia | `mapa_coropletico()` |
+| La provincia dentro de Antioquia | `mapa_localizacion()` |
+| Los 125 municipios con la provincia delineada | `mapa_departamental()` |
+| Las once provincias en un mapa | `mapa_provincias()` |
 
 `agregar_totales()` admite `como = "suma"`, `"promedio"`, `"mediana"` o
 `"promedio_ponderado"` (con `pesos =`). **Las tasas y los índices se agregan
@@ -81,7 +89,15 @@ metodológica del proyecto, documentada en los scripts de origen.
 Rscript 02_Code/99_checks/check_pipeline.R        # revisión estática del repo
 Rscript 02_Code/99_checks/comparar_referencia.R   # cifras vs. informe publicado
 ID_PROVINCIA=2 Rscript 02_Code/99_checks/hoja_contactos.R   # revisión visual
+
+Rscript 02_Code/99_checks/auditoria_end_to_end.R      # trazabilidad de cada cifra
+Rscript 02_Code/99_checks/diccionario_indicadores.R   # indicadores vs. fichas
+Rscript 02_Code/99_checks/generar_tablas_anexo.R      # tablas del anexo (04_Docs)
 ```
+
+La auditoría recompone cada fila de total a partir de sus municipios y comprueba
+con qué fórmula se reproduce. Deja su evidencia en `04_Docs/auditoria/`, un CSV
+por comprobación, comparables entre corridas.
 
 ## `01_homogeneizacion/externos/`
 

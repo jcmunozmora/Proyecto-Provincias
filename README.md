@@ -68,12 +68,15 @@ Definidas en un solo lugar: la tabla `PROVINCIAS` de
 02_Code/
   run_all.R        pipeline completo
   run_provincia.R  una provincia
-  R/               configuración, utilidades y sistema visual
+  R/               configuración, utilidades, sistema visual y cartografía
   01_homogeneizacion/  cada fuente cruda → un derivado limpio
   03_tablas/           una sección temática → su .xlsx
-  04_figuras/          esas tablas → figuras PNG y PDF
-  99_checks/           verificación del pipeline
+  04_figuras/          esas tablas → figuras y mapas PNG y PDF
+  05_documento/        diagnósticos provinciales en Word
+  06_comparativo/      panel y documento comparativo de las once provincias
+  99_checks/           verificación y auditoría del pipeline
 03_Outputs/        salidas por provincia (se generan; no se versionan)
+04_Docs/           anexo metodológico, auditoría y plan de escritura
 99_Legacy/         pipeline anterior en Stata y material retirado
 tests/             referencia de validación
 ```
@@ -92,13 +95,17 @@ tests/             referencia de validación
         ▼
 03_Outputs/<Provincia>/<NN_Seccion>/seccion.xlsx
         │
-        │  02_Code/04_figuras/             ggplot2 según DISENO.md
+        │  02_Code/04_figuras/             ggplot2 y sf según DISENO.md
         ▼
-03_Outputs/<Provincia>/<NN_Seccion>/figuras/fig_NN_*.png y .pdf
+03_Outputs/<Provincia>/<NN_Seccion>/figuras/fig_NN_*.png · mapa_NN_*.png (+ .pdf)
 ```
 
-Cada figura deja sus datos exactos en una hoja del `.xlsx` de la sección, para
-que cualquier cifra publicada se pueda rastrear hasta su origen.
+Cada figura y cada mapa dejan sus datos exactos en una hoja del `.xlsx` de la
+sección, para que cualquier cifra publicada se pueda rastrear hasta su origen.
+
+Los mapas corren **después** de las diez secciones y leen la tabla que la sección
+acaba de escribir: si recalcularan desde los derivados podrían discrepar de ella,
+y el informe tendría dos cifras para el mismo hecho.
 
 Los datos intermedios (`01_Derived`) están todos en **Parquet**: un solo formato,
 comprimido y tipado, legible desde R, Python y Stata 18+. En el código se leen
@@ -112,7 +119,7 @@ con `leer_derivado("nombre")`, sin extensión.
 
 ---
 
-## Figuras
+## Figuras y mapas
 
 Todas las figuras siguen un único sistema visual, documentado en
 [02_Code/04_figuras/DISENO.md](02_Code/04_figuras/DISENO.md): paleta oficial
@@ -121,6 +128,16 @@ de caja del informe, formato numérico colombiano y nota de fuente obligatoria.
 
 Salen en dos formatos: **PNG a 300 dpi** (Word, PowerPoint) y **PDF vectorial**
 (imprenta, LaTeX), ambos al tamaño final — no hay que reescalarlas.
+
+Los **mapas** siguen las mismas reglas (rampa secuencial para magnitud, gris para
+el dato ausente, sin ejes ni retícula) y están en
+[02_Code/R/03_mapas.R](02_Code/R/03_mapas.R). Requieren `sf` y `ggrepel`, que son
+dependencias **opcionales**: sin ellas el pipeline genera todo lo demás y omite
+los mapas con un aviso.
+
+```r
+install.packages(c("sf", "ggrepel"))
+```
 
 Si va a crear o modificar una figura, lea ese manual antes: los colores y
 tamaños no se eligen figura por figura.
@@ -138,9 +155,26 @@ Rscript 02_Code/99_checks/comparar_referencia.R
 
 # Junta las figuras de una provincia en una imagen, para revisarlas de un vistazo
 ID_PROVINCIA=2 Rscript 02_Code/99_checks/hoja_contactos.R
+
+# Auditoría de trazabilidad: procedencia, huella de las fuentes, cobertura
+# municipal, recomputación de cada agregado, rangos y trazabilidad de figuras
+Rscript 02_Code/99_checks/auditoria_end_to_end.R
+
+# Qué indicadores publica el pipeline y cuáles tienen ficha técnica
+Rscript 02_Code/99_checks/diccionario_indicadores.R
+
+# Verifica que ninguna cifra del texto de los informes carezca de procedencia,
+# y mide su propio poder de detección inyectando cifras falsas
+Rscript 02_Code/99_checks/auditoria_redaccion.R
 ```
 
 Estado actual de la validación: **43 de 43 columnas reproducen el informe**.
+
+La auditoría escribe su evidencia en [04_Docs/auditoria/](04_Docs/) — un CSV por
+comprobación, comparables entre corridas — y su lectura de un vistazo en
+`04_Docs/auditoria/RESUMEN.md`. El anexo metodológico
+([04_Docs/anexo_metodologico.pdf](04_Docs/)) documenta fuentes, protocolos de
+uso, reglas de limpieza y agregación, y la estrategia de actualización.
 
 El Anexo 1 (`00_Documentos/`) es el informe entregado para la provincia
 Bioenergética del Norte: 52 tablas ya curadas. Sirve de patrón para validar que
@@ -193,6 +227,37 @@ así que ese código dejaría hoy a la provincia 5 sin municipios. El pipeline e
 empareja de forma tolerante y no depende de la grafía. Y
 `20260504_SEGURIDAD_SALUD_DEFICT_VIVIENDA` conserva el error "DEFICT" porque es
 el archivo vigente.
+
+**Cuatro derivados no se pueden rehacer desde la fuente.** Los scripts de
+[02_Code/01_homogeneizacion/externos/](02_Code/01_homogeneizacion/externos/)
+documentan cómo se construyeron los kilómetros de vía (IDV y VPC), las tasas de
+suicidio e intento, el índice de envejecimiento y el IRCA, pero leen rutas del
+computador de quien los escribió y no corren aquí. Dos de ellos, además, no
+contienen ninguna instrucción de escritura. Esos indicadores se publican sin que
+exista en el repositorio código capaz de reproducirlos.
+
+**La cobertura neta educativa supera el 100 %** en 284 de los 1.750 registros
+municipio-año de la fuente, con un máximo de 186,97 %. Una cobertura *neta* no
+puede exceder el 100 % por definición: o la serie es de cobertura bruta, o
+matrícula y proyección de población no son consistentes. El pipeline publica el
+dato sin corregirlo —corregirlo sería inventar— y las figuras y mapas de esa
+sección llevan una nota que lo advierte. Falta verificarlo con el MEN.
+
+**Solo una de las once provincias tiene validación externa.** El comparador
+contrasta 43 columnas contra el Anexo 1 de la provincia 2 y las 43 reproducen el
+informe. Para las otras diez no hay informe publicado contra el cual contrastar:
+su corrección descansa en que el código es el mismo y en la auditoría interna.
+
+**330 indicadores publicados, 12 con ficha técnica.** Las 65 fichas del
+repositorio describen la familia de indicadores de la ECV y del Anuario, no lo
+que el diagnóstico reporta. Ver
+[04_Docs/anexo_metodologico.pdf](04_Docs/) §7.
+
+**Documentación desactualizada.** `02_Code/04_figuras/CATALOGO_NOTAS.md` describe
+una decisión ya superada (gráficos nativos de Excel, sin ggplot2) y
+`catalogo_figuras.xlsx` marca 78 figuras como «hecho» cuando el código genera 56
+más 10 mapas por provincia. Varias cabeceras de scripts de tablas declaran rutas
+en `01_Data/01_Derived` para insumos que hoy viven en `01_Data/00_Inputs/curados`.
 
 ---
 

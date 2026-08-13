@@ -159,6 +159,12 @@ PAQUETES <- c(
   "ggplot2", "scales", "ragg", "systemfonts"                 # figuras
 )
 
+# Los mapas no son obligatorios: sin estos dos paquetes el pipeline genera todas
+# las tablas y todas las figuras no cartográficas, y omite los mapas con un
+# aviso. Se declaran aparte para que un clon sin `sf` —que necesita GDAL, GEOS y
+# PROJ en el sistema— no quede bloqueado.
+PAQUETES_MAPAS <- c("sf", "ggrepel")
+
 cargar_paquetes <- function(paquetes = PAQUETES) {
   faltantes <- paquetes[!vapply(paquetes, requireNamespace, logical(1), quietly = TRUE)]
   if (length(faltantes)) {
@@ -175,5 +181,6 @@ cargar_paquetes <- function(paquetes = PAQUETES) {
 cargar_paquetes()
 source(file.path(RUTAS$codigo, "R", "01_utils.R"), encoding = "UTF-8")
 source(file.path(RUTAS$codigo, "R", "02_tema.R"), encoding = "UTF-8")
+source(file.path(RUTAS$codigo, "R", "03_mapas.R"), encoding = "UTF-8")
 
 message("[config] Raíz del proyecto: ", RUTAS$raiz)
